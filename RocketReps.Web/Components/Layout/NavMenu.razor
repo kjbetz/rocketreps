@@ -2,72 +2,38 @@
 
 @inject NavigationManager NavigationManager
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">RocketReps.Web</a>
-    </div>
-</div>
+<header class="site-header">
+    <a class="brand" href="" aria-label="Rocket Reps home">
+        <span class="brand-mark" aria-hidden="true">RR</span>
+        <span>
+            <strong>Rocket Reps</strong>
+            <small>Spaced repetition for young learners</small>
+        </span>
+    </a>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <input type="checkbox" title="Navigation menu" class="nav-toggle" />
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="auth">
-                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
-            </NavLink>
-        </div>
+    <nav class="primary-nav" onclick="document.querySelector('.nav-toggle')?.click()">
+        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Mission Control</NavLink>
+        <NavLink class="nav-link" href="decks">Stock Decks</NavLink>
+        <NavLink class="nav-link" href="auth">Study Hub</NavLink>
 
         <AuthorizeView>
             <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
-                </div>
+                <NavLink class="nav-link" href="Account/Manage">@context.User.Identity?.Name</NavLink>
+                <form action="Account/Logout" method="post" class="logout-form">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                    <button type="submit" class="nav-link nav-button">Log out</button>
+                </form>
             </Authorized>
             <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
+                <NavLink class="nav-link" href="Account/Login">Log in</NavLink>
+                <NavLink class="nav-link nav-cta" href="Account/Register">Start a Mission</NavLink>
             </NotAuthorized>
         </AuthorizeView>
     </nav>
-</div>
+</header>
 
 @code {
     private string? currentUrl;
@@ -89,4 +55,3 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-

@@ -4,10 +4,16 @@
 
 @attribute [Authorize]
 
-<PageTitle>Auth</PageTitle>
+<PageTitle>Study Hub</PageTitle>
 
-<h1>You are authenticated</h1>
+<section class="page-hero compact">
+    <p class="eyebrow">Study Hub</p>
+    <h1>Your launch dashboard is next.</h1>
+    <p>This protected page is a placeholder for assigned decks, due reviews, and student progress once the first study flow is wired up.</p>
+</section>
 
 <AuthorizeView>
-    Hello @context.User.Identity?.Name!
+    <div class="content-card">
+        Welcome aboard, @context.User.Identity?.Name. The next mission is classroom joins and assigned deck practice.
+    </div>
 </AuthorizeView>

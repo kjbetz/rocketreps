@@ -1,0 +1,58 @@
+﻿@page "/decks"
+@attribute [StreamRendering]
+@using Microsoft.EntityFrameworkCore
+@using RocketReps.Web.Data
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Stock Decks</PageTitle>
+
+<section class="page-hero compact">
+    <p class="eyebrow">Ready-made missions</p>
+    <h1>Stock decks for the first demo.</h1>
+    <p>These decks are seeded automatically for development so a teacher can assign useful content without creating cards first.</p>
+</section>
+
+@if (decks is null)
+{
+    <div class="loading-card">Loading launch manifest...</div>
+}
+else
+{
+    <section class="deck-grid" aria-label="Stock decks">
+        @foreach (var deck in decks)
+        {
+            <article class="deck-card">
+                <div class="deck-card-header">
+                    <span>@deck.Subject</span>
+                    <strong>@deck.CardCount cards</strong>
+                </div>
+                <h2>@deck.Title</h2>
+                <p>@deck.Description</p>
+                <div class="deck-meta">
+                    <span>@deck.GradeBand</span>
+                    <span>Global stock</span>
+                </div>
+            </article>
+        }
+    </section>
+}
+
+@code {
+    private List<DeckSummary>? decks;
+
+    protected override async Task OnInitializedAsync()
+    {
+        decks = await DbContext.Decks
+            .Where(deck => deck.IsGlobalStock && deck.IsPublished)
+            .OrderBy(deck => deck.Title)
+            .Select(deck => new DeckSummary(
+                deck.Title,
+                deck.Description,
+                deck.Subject,
+                deck.GradeBand,
+                deck.Cards.Count))
+            .ToListAsync();
+    }
+
+    private sealed record DeckSummary(string Title, string Description, string Subject, string GradeBand, int CardCount);
+}
