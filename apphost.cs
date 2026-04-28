@@ -8,7 +8,10 @@ var builder = DistributedApplication.CreateBuilder(args);
 var rocketRepsDb = builder.AddPostgres("postgres")
     .AddDatabase("rocketrepsdb", "rocketreps");
 
-builder.AddCSharpApp("web", "./RocketReps.Web/RocketReps.Web.csproj")
+builder.AddCSharpApp("web", "./RocketReps.Web/RocketReps.Web.csproj", options =>
+{
+    options.LaunchProfileName = "https";
+})
     .WithReference(rocketRepsDb)
     .WaitFor(rocketRepsDb)
     .WithExternalHttpEndpoints();

@@ -15,26 +15,26 @@
 <hr />
 <StatusMessage Message="@message" />
 <p>Your login is protected with an authenticator app. Enter your authenticator code below.</p>
-<div class="row">
-    <div class="col-md-4">
+<div class="layout-grid">
+    <div class="layout-panel">
         <EditForm Model="Input" FormName="login-with-2fa" OnValidSubmit="OnValidSubmitAsync" method="post">
             <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
             <input type="hidden" name="RememberMe" value="@RememberMe" />
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.TwoFactorCode" id="Input.TwoFactorCode" class="form-control" autocomplete="off" />
-                <label for="Input.TwoFactorCode" class="form-label">Authenticator code</label>
-                <ValidationMessage For="() => Input.TwoFactorCode" class="text-danger" />
+            <ValidationSummary class="status-danger" role="alert" />
+            <div class="field-stack">
+                <InputText @bind-Value="Input.TwoFactorCode" id="Input.TwoFactorCode" class="field-input" autocomplete="off" />
+                <label for="Input.TwoFactorCode" class="field-label">Authenticator code</label>
+                <ValidationMessage For="() => Input.TwoFactorCode" class="status-danger" />
             </div>
-            <div class="checkbox mb-3">
-                <label for="remember-machine" class="form-label">
+            <div class="field-stack">
+                <label for="remember-machine" class="field-label">
                     <InputCheckbox @bind-Value="Input.RememberMachine" />
                     Remember this machine
                 </label>
             </div>
             <div>
-                <button type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
+                <button type="submit" class="button-primary button-full">Log in</button>
             </div>
         </EditForm>
     </div>

@@ -2,6 +2,7 @@
 
 - This is a .NET 10 ASP.NET Core Blazor application orchestrated by a file-based Aspire AppHost (`apphost.cs`).
 - Use `aspire start --isolated` from the repository root to run the AppHost locally.
+- The file-based AppHost starts `RocketReps.Web` with the `https` launch profile so Aspire creates both HTTP and HTTPS endpoints and sets `ASPNETCORE_HTTPS_PORT` for local redirects.
 - Use `dotnet build RocketReps.Web/RocketReps.Web.csproj` to build the web app and referenced ServiceDefaults project.
 - The local Aspire topology includes PostgreSQL (`postgres`) with the `rocketrepsdb` database resource wired into `RocketReps.Web`.
 - The web app uses `RocketReps.ServiceDefaults` for Aspire telemetry, service discovery, resilience, and health endpoints.
