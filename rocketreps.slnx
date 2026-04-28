@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="RocketReps.ServiceDefaults/RocketReps.ServiceDefaults.csproj" />
+  <Project Path="RocketReps.Web/RocketReps.Web.csproj" />
+</Solution>

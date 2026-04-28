@@ -113,6 +113,7 @@ public sealed class DeckAssignment
     public Guid DeckId { get; set; }
     public required string AssignedByTeacherId { get; set; }
     public DateTimeOffset? DueAt { get; set; }
+    public bool IsActive { get; set; }
     public bool IsOpenStudyAllowed { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 

@@ -1,0 +1,95 @@
+@page "/student"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Student")]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using RocketReps.Web.Data
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Student Mission Board</PageTitle>
+
+<section class="page-hero compact">
+    <p class="eyebrow">Student mission board</p>
+    <h1>Choose an active deck.</h1>
+    <p>These missions are turned on by your teacher. Pick one and launch a short practice round.</p>
+</section>
+
+@if (isLoading)
+{
+    <div class="loading-card">Loading your missions...</div>
+}
+else if (assignments.Count == 0)
+{
+    <section class="content-card">
+        <h2>No active missions yet.</h2>
+        <p class="status-muted">Ask your teacher to activate a deck for your classroom.</p>
+    </section>
+}
+else
+{
+    <section class="deck-grid" aria-label="Active student decks">
+        @foreach (var assignment in assignments)
+        {
+            <article class="deck-card">
+                <div class="deck-card-header">
+                    <span>@assignment.Subject</span>
+                    <strong>@assignment.CardCount cards</strong>
+                </div>
+                <h2>@assignment.DeckTitle</h2>
+                <p>@assignment.Description</p>
+                <div class="deck-meta">
+                    <span>@assignment.ClassroomName</span>
+                    <span>@assignment.GradeBand</span>
+                </div>
+                <a class="button-primary card-action" href="student/review/@assignment.AssignmentId">Start mission</a>
+            </article>
+        }
+    </section>
+}
+
+@code {
+    private bool isLoading = true;
+    private List<StudentAssignment> assignments = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var student = await UserManager.GetUserAsync(authState.User);
+
+        if (student is not null)
+        {
+            assignments = await DbContext.DeckAssignments
+                .Where(assignment => assignment.IsActive &&
+                    assignment.Classroom != null &&
+                    assignment.Classroom.Memberships.Any(membership => membership.UserId == student.Id &&
+                        membership.Role == ClassroomMemberRole.Student &&
+                        membership.Status == ClassroomMemberStatus.Approved))
+                .OrderBy(assignment => assignment.Classroom!.Name)
+                .ThenBy(assignment => assignment.Deck!.Title)
+                .Select(assignment => new StudentAssignment(
+                    assignment.Id,
+                    assignment.Classroom!.Name,
+                    assignment.Deck!.Title,
+                    assignment.Deck.Description,
+                    assignment.Deck.Subject,
+                    assignment.Deck.GradeBand,
+                    assignment.Deck.Cards.Count))
+                .ToListAsync();
+        }
+
+        isLoading = false;
+    }
+
+    private sealed record StudentAssignment(
+        Guid AssignmentId,
+        string ClassroomName,
+        string DeckTitle,
+        string Description,
+        string Subject,
+        string GradeBand,
+        int CardCount);
+}

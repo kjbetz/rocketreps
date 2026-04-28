@@ -1,0 +1,208 @@
+@page "/student/review/{AssignmentId:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Student")]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using RocketReps.Web.Data
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Review Mission</PageTitle>
+
+@if (isLoading)
+{
+    <div class="loading-card">Loading review mission...</div>
+}
+else if (loadError is not null)
+{
+    <section class="page-hero compact">
+        <p class="eyebrow">Mission unavailable</p>
+        <h1>@loadError</h1>
+        <p><a href="student">Back to student mission board</a></p>
+    </section>
+}
+else if (assignment is not null)
+{
+    <section class="page-hero compact">
+        <p class="eyebrow">@assignment.ClassroomName</p>
+        <h1>@assignment.DeckTitle</h1>
+        <p>Answer the card, then Rocket Reps will schedule the next review from right or wrong.</p>
+    </section>
+
+    @if (currentCard is null)
+    {
+        <section class="content-card review-complete">
+            <h2>Mission round complete.</h2>
+            <p class="status-muted">Nice work. You reviewed @completedCount cards in this round.</p>
+            <a class="button-primary" href="student">Back to missions</a>
+        </section>
+    }
+    else
+    {
+        <section class="review-shell">
+            <div class="review-progress">
+                Card @(currentIndex + 1) of @cards.Count
+            </div>
+            <article class="review-card">
+                <p class="eyebrow">Question</p>
+                <h2>@currentCard.Front</h2>
+
+                @if (feedback is null)
+                {
+                    <EditForm Model="answerInput" OnValidSubmit="SubmitAnswerAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="status-danger" />
+                        <div class="field-stack">
+                            <InputText @bind-Value="answerInput.Answer" id="StudentAnswer" class="field-input review-answer" autocomplete="off" autofocus />
+                            <label for="StudentAnswer">Your answer</label>
+                        </div>
+                        <button type="submit" class="button-primary button-full">Check answer</button>
+                    </EditForm>
+                }
+                else
+                {
+                    <div class="notice @(feedback.WasCorrect ? "notice-success" : "notice-warning")">
+                        <strong>@(feedback.WasCorrect ? "Correct!" : "Not yet.")</strong>
+                        <span>The answer is @feedback.CorrectAnswer.</span>
+                    </div>
+                    <button type="button" class="button-primary button-full" @onclick="MoveNext">Next card</button>
+                }
+            </article>
+        </section>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid AssignmentId { get; set; }
+
+    private readonly AnswerInput answerInput = new();
+    private ApplicationUser? currentStudent;
+    private AssignmentHeader? assignment;
+    private List<ReviewCard> cards = [];
+    private ReviewCard? currentCard;
+    private AnswerFeedback? feedback;
+    private bool isLoading = true;
+    private string? loadError;
+    private int currentIndex;
+    private int completedCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentStudent = await UserManager.GetUserAsync(authState.User);
+
+        if (currentStudent is null)
+        {
+            loadError = "We could not load your student account.";
+            isLoading = false;
+            return;
+        }
+
+        assignment = await DbContext.DeckAssignments
+            .Where(deckAssignment => deckAssignment.Id == AssignmentId &&
+                deckAssignment.IsActive &&
+                deckAssignment.Classroom != null &&
+                deckAssignment.Classroom.Memberships.Any(membership => membership.UserId == currentStudent.Id &&
+                    membership.Role == ClassroomMemberRole.Student &&
+                    membership.Status == ClassroomMemberStatus.Approved))
+            .Select(deckAssignment => new AssignmentHeader(
+                deckAssignment.Id,
+                deckAssignment.Classroom!.Name,
+                deckAssignment.Deck!.Title,
+                deckAssignment.DeckId))
+            .SingleOrDefaultAsync();
+
+        if (assignment is null)
+        {
+            loadError = "This deck is not active for your classroom.";
+            isLoading = false;
+            return;
+        }
+
+        cards = await DbContext.Cards
+            .Where(card => card.DeckId == assignment.DeckId)
+            .OrderBy(card => card.SortOrder)
+            .Select(card => new ReviewCard(card.Id, card.Front, card.Back, card.CorrectAnswer))
+            .ToListAsync();
+
+        currentCard = cards.FirstOrDefault();
+        isLoading = false;
+    }
+
+    private async Task SubmitAnswerAsync()
+    {
+        if (currentStudent is null || currentCard is null || assignment is null)
+        {
+            return;
+        }
+
+        var correctAnswer = currentCard.CorrectAnswer ?? currentCard.Back;
+        var wasCorrect = NormalizeAnswer(answerInput.Answer) == NormalizeAnswer(correctAnswer);
+        var rating = wasCorrect ? ReviewRating.Good : ReviewRating.Again;
+        var interval = wasCorrect ? TimeSpan.FromDays(1) : TimeSpan.FromMinutes(10);
+        var now = DateTimeOffset.UtcNow;
+        var nextDueAt = now.Add(interval);
+
+        var progress = await DbContext.StudentCardProgress
+            .SingleOrDefaultAsync(existingProgress => existingProgress.UserId == currentStudent.Id && existingProgress.CardId == currentCard.Id);
+
+        if (progress is null)
+        {
+            progress = new StudentCardProgress
+            {
+                Id = Guid.NewGuid(),
+                UserId = currentStudent.Id,
+                CardId = currentCard.Id,
+            };
+            DbContext.StudentCardProgress.Add(progress);
+        }
+
+        progress.DueAt = nextDueAt;
+        progress.ReviewCount++;
+        progress.LapseCount += wasCorrect ? 0 : 1;
+        progress.LastRating = rating;
+        progress.LastReviewedAt = now;
+
+        DbContext.ReviewLogs.Add(new ReviewLog
+        {
+            Id = Guid.NewGuid(),
+            UserId = currentStudent.Id,
+            CardId = currentCard.Id,
+            DeckAssignmentId = assignment.AssignmentId,
+            ReviewedAt = now,
+            WasCorrect = wasCorrect,
+            Rating = rating,
+            ScheduledInterval = interval,
+            NextDueAt = nextDueAt,
+        });
+
+        await DbContext.SaveChangesAsync();
+        completedCount++;
+        feedback = new AnswerFeedback(wasCorrect, correctAnswer);
+    }
+
+    private void MoveNext()
+    {
+        currentIndex++;
+        currentCard = currentIndex < cards.Count ? cards[currentIndex] : null;
+        answerInput.Answer = string.Empty;
+        feedback = null;
+    }
+
+    private static string NormalizeAnswer(string value) => value.Trim().ToUpperInvariant();
+
+    private sealed class AnswerInput
+    {
+        [Required]
+        public string Answer { get; set; } = string.Empty;
+    }
+
+    private sealed record AssignmentHeader(Guid AssignmentId, string ClassroomName, string DeckTitle, Guid DeckId);
+    private sealed record ReviewCard(Guid Id, string Front, string Back, string? CorrectAnswer);
+    private sealed record AnswerFeedback(bool WasCorrect, string CorrectAnswer);
+}

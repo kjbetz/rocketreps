@@ -1,10 +1,30 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="@InitialTheme" data-theme-mode="@InitialThemeMode">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <script>
+        (() => {
+            const storageKey = "rocketreps-theme";
+            const cookieName = "rocketreps_theme";
+            const allowed = new Set(["light", "dark", "system"]);
+            const getCookie = () => document.cookie.split("; ").find((row) => row.startsWith(`${cookieName}=`))?.split("=")[1];
+            const normalize = (value) => allowed.has(value) ? value : "system";
+            let mode = "system";
+
+            try {
+                mode = normalize(localStorage.getItem(storageKey) || decodeURIComponent(getCookie() || ""));
+            } catch {
+                mode = normalize(decodeURIComponent(getCookie() || ""));
+            }
+
+            const resolved = mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : mode === "dark" ? "dark" : "light";
+            document.documentElement.dataset.theme = resolved;
+            document.documentElement.dataset.themeMode = mode;
+        })();
+    </script>
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["RocketReps.Web.styles.css"]" />
@@ -17,7 +37,21 @@
     <Routes />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="@Assets["theme.js"]"></script>
     <script src="@Assets["Components/Account/Shared/PasskeySubmit.razor.js"]" type="module"></script>
 </body>
 
 </html>
+
+@code {
+    private const string ThemeCookieName = "rocketreps_theme";
+
+    [CascadingParameter]
+    private Microsoft.AspNetCore.Http.HttpContext? HttpContext { get; set; }
+
+    private string InitialThemeMode => NormalizeThemeMode(HttpContext?.Request.Cookies[ThemeCookieName]);
+
+    private string? InitialTheme => InitialThemeMode is "light" or "dark" ? InitialThemeMode : null;
+
+    private static string NormalizeThemeMode(string? value) => value is "light" or "dark" or "system" ? value : "system";
+}

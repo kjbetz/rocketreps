@@ -7,13 +7,17 @@
 - The local Aspire topology includes PostgreSQL (`postgres`) with the `rocketrepsdb` database resource wired into `RocketReps.Web`.
 - The web app uses `RocketReps.ServiceDefaults` for Aspire telemetry, service discovery, resilience, and health endpoints.
 - `RocketReps.Web` uses Entity Framework Core Identity with PostgreSQL via `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL`; do not reintroduce SQLite unless explicitly requested.
-- Rocket Reps is a spaced-repetition classroom study app for elementary and middle school students, currently themed around Riverview STEM Academy Rockets.
+- Rocket Reps is a teacher-first spaced-repetition classroom study app for elementary and middle school students, currently themed around Riverview STEM Academy Rockets.
 - The current domain model includes schools, classrooms, classroom memberships, decks, cards, deck assignments, student card progress, and review logs.
 - Development startup seeding lives in `RocketReps.Web/Data/ApplicationDataSeeder.cs` and creates `Riverview STEM Academy`, `Admin`/`Teacher`/`Student` roles, and stock math decks.
 - Keep seeded stock decks programmatic unless there is a strong reason to move large content sets into migrations.
+- Current onboarding is teacher-first: teachers self-register, create classrooms, generate student logins, assign decks, and toggle classroom deck assignments active/inactive.
+- Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting is needed.
 - The app intentionally uses custom CSS and should not use Bootstrap or a UI component library unless explicitly requested.
 - The student review UX should stay age-appropriate. The first scheduling model is binary right/wrong, mapped internally to `Again`/`Good` ratings.
-- Be privacy-conscious when adding student features; prefer teacher-created usernames and minimal student personal data.
+- Be privacy-conscious when adding student features; students should not self-register or need email. Prefer teacher-created ASP.NET Identity users with usernames, generated/resettable passwords, and minimal student personal data.
+- Deck availability is per classroom assignment. Use `DeckAssignment.IsActive` to show or hide work for students; do not add a global active flag to `Deck`.
+- Teacher-created student accounts should use ASP.NET Core Identity, not a separate authentication system.
 - EF Core migrations live in `RocketReps.Web/Data/Migrations`. Add new schema migrations with `dotnet ef migrations add <Name> --project RocketReps.Web/RocketReps.Web.csproj --startup-project RocketReps.Web/RocketReps.Web.csproj --output-dir Data/Migrations`.
 - In Development, `RocketReps.Web` applies pending EF Core migrations on startup so Aspire's session-scoped PostgreSQL database is initialized automatically.
 - The PostgreSQL Aspire container is currently session-scoped and does not use a data volume; local data can be recreated between Aspire sessions.

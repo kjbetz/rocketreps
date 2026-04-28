@@ -4,7 +4,7 @@
 
 <header class="site-header">
     <a class="brand" href="" aria-label="Rocket Reps home">
-        <span class="brand-mark" aria-hidden="true">RR</span>
+        <span class="brand-mark" aria-hidden="true">🚀</span>
         <span>
             <strong>Rocket Reps</strong>
             <small>Spaced repetition for young learners</small>
@@ -16,10 +16,24 @@
     <nav class="primary-nav" onclick="document.querySelector('.nav-toggle')?.click()">
         <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Mission Control</NavLink>
         <NavLink class="nav-link" href="decks">Stock Decks</NavLink>
-        <NavLink class="nav-link" href="auth">Study Hub</NavLink>
+
+        <div class="theme-switcher" onclick="event.stopPropagation()">
+            <label class="theme-switcher-label" for="theme-preference">Theme</label>
+            <select id="theme-preference" class="theme-select" data-theme-switcher aria-label="Theme preference">
+                <option value="system" selected>System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+            </select>
+        </div>
 
         <AuthorizeView>
             <Authorized>
+                <AuthorizeView Roles="Teacher" Context="teacherContext">
+                    <NavLink class="nav-link" href="teacher">Teacher</NavLink>
+                </AuthorizeView>
+                <AuthorizeView Roles="Student" Context="studentContext">
+                    <NavLink class="nav-link" href="student">Student</NavLink>
+                </AuthorizeView>
                 <NavLink class="nav-link" href="Account/Manage">@context.User.Identity?.Name</NavLink>
                 <form action="Account/Logout" method="post" class="logout-form">
                     <AntiforgeryToken />
@@ -29,7 +43,7 @@
             </Authorized>
             <NotAuthorized>
                 <NavLink class="nav-link" href="Account/Login">Log in</NavLink>
-                <NavLink class="nav-link nav-cta" href="Account/Register">Start a Mission</NavLink>
+                <NavLink class="nav-link nav-cta" href="Account/Register">Teacher Sign Up</NavLink>
             </NotAuthorized>
         </AuthorizeView>
     </nav>
