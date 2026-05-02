@@ -9,7 +9,7 @@ The initial theme is space/rocket inspired for Riverview STEM Academy, whose mas
 The app currently includes the foundation for the first vertical slice:
 
 - ASP.NET Core Blazor app using Identity for authentication.
-- PostgreSQL database wired through Aspire.
+- PostgreSQL database wired through Aspire, with pgWeb available from the Aspire dashboard for local database inspection.
 - EF Core domain schema for schools, classrooms, memberships, decks, cards, assignments, student card progress, and review logs.
 - Roles seeded for `Admin`, `Teacher`, and `Student`.
 - Development data seeding for `Riverview STEM Academy`.
@@ -74,6 +74,8 @@ dotnet ef migrations add <Name> --project RocketReps.Web/RocketReps.Web.csproj -
 ```
 
 In development, pending migrations are applied automatically on startup. The local PostgreSQL resource is currently session-scoped, so local data may be recreated between Aspire sessions.
+
+The Aspire AppHost also starts pgWeb for the PostgreSQL resource. Open it from the Aspire dashboard when you need to inspect the local `rocketrepsdb` database.
 
 After changing compiled code while Aspire is running, rebuild the web resource instead of restarting the full AppHost when possible:
 

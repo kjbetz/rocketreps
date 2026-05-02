@@ -5,8 +5,10 @@
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var rocketRepsDb = builder.AddPostgres("postgres")
-    .AddDatabase("rocketrepsdb", "rocketreps");
+var postgres = builder.AddPostgres("postgres")
+    .WithPgWeb();
+
+var rocketRepsDb = postgres.AddDatabase("rocketrepsdb", "rocketreps");
 
 builder.AddCSharpApp("web", "./RocketReps.Web/RocketReps.Web.csproj", options =>
 {
