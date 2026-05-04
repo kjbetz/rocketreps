@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using RocketReps.Web.Components;
 using RocketReps.Web.Components.Account;
 using RocketReps.Web.Data;
@@ -16,6 +18,23 @@ builder.Services.AddRazorComponents()
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+
+builder.Services.AddOptions<RocketRepsDataProtectionOptions>()
+    .Bind(builder.Configuration.GetSection(RocketRepsDataProtectionOptions.SectionName));
+
+var dataProtectionOptions = builder.Configuration
+    .GetSection(RocketRepsDataProtectionOptions.SectionName)
+    .Get<RocketRepsDataProtectionOptions>() ?? new();
+
+var dataProtectionBuilder = builder.Services
+    .AddDataProtection()
+    .SetApplicationName(dataProtectionOptions.ApplicationName);
+
+if (!string.IsNullOrWhiteSpace(dataProtectionOptions.KeysDirectory))
+{
+    Directory.CreateDirectory(dataProtectionOptions.KeysDirectory);
+    dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionOptions.KeysDirectory));
+}
 
 builder.Services.AddAuthentication(options =>
     {
@@ -41,6 +60,15 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
+var appDataProtectionOptions = app.Services.GetRequiredService<IOptions<RocketRepsDataProtectionOptions>>().Value;
+
+if (!app.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(appDataProtectionOptions.KeysDirectory))
+{
+    app.Logger.LogWarning(
+        "Data Protection keys are not persisted. Configure {Section}:{Setting} to a mounted writable directory to preserve antiforgery and auth cookies across deploys.",
+        RocketRepsDataProtectionOptions.SectionName,
+        nameof(RocketRepsDataProtectionOptions.KeysDirectory));
+}
 
 app.MapDefaultEndpoints();
 

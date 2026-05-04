@@ -101,11 +101,14 @@ Set these GitHub Actions variables for each environment:
 - `STAGING_WEB_ENV_FILE` or `PRODUCTION_WEB_ENV_FILE`: path to the web app env file on the VPS.
 - `STAGING_PODMAN_NETWORK` or `PRODUCTION_PODMAN_NETWORK`: Podman network where the database is reachable.
 
-The web env file must include the Rocket Reps connection string:
+The web env file must include the Rocket Reps connection string and should configure a mounted data protection keys directory:
 
 ```bash
 ConnectionStrings__rocketreps=Host=...;Port=5432;Database=rocketreps;Username=...;Password=...
+DataProtection__KeysDirectory=/var/rocketreps/data-protection-keys
 ```
+
+Mount `DataProtection__KeysDirectory` to persistent VPS storage for the web container. This preserves antiforgery and auth cookies across deploys.
 
 When a Podman network variable is set, `scripts/ci/apply-ef-bundle.sh` runs the EF bundle in a temporary Podman container attached to that network so it can resolve the database host.
 
