@@ -24,7 +24,7 @@ builder.Services.AddAuthentication(options =>
     })
     .AddIdentityCookies();
 
-builder.AddNpgsqlDbContext<ApplicationDbContext>("rocketrepsdb");
+builder.AddNpgsqlDbContext<ApplicationDbContext>("rocketreps");
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>

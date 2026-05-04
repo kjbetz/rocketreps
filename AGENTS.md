@@ -4,7 +4,12 @@
 - Use `aspire start --isolated` from the repository root to run the AppHost locally.
 - The file-based AppHost starts `RocketReps.Web` with the `https` launch profile so Aspire creates both HTTP and HTTPS endpoints and sets `ASPNETCORE_HTTPS_PORT` for local redirects.
 - Use `dotnet build RocketReps.Web/RocketReps.Web.csproj` to build the web app and referenced ServiceDefaults project.
-- The local Aspire topology includes PostgreSQL (`postgres`) with pgWeb enabled and the `rocketrepsdb` database resource wired into `RocketReps.Web`.
+- The local Aspire topology includes PostgreSQL (`postgres`) with pgWeb enabled and the `rocketreps` database resource wired into `RocketReps.Web`.
+- The app connection string key is `rocketreps`; deployed web env files should set `ConnectionStrings__rocketreps`.
+- GitHub Actions deploys staging on every push to `main` and promotes production only from `v*` tags.
+- The deployment runner is self-hosted on the VPS with labels `[self-hosted, linux, rocketreps-vps]`.
+- Staging publishes `ghcr.io/kjbetz/rocketreps-web:staging` and `:sha-<commit>`; production promotes the tagged commit's `:sha-<commit>` image to `:prod` and `:<version-tag>`.
+- EF migration bundles are built in GitHub Actions and applied on the VPS by `scripts/ci/apply-ef-bundle.sh`; with `STAGING_PODMAN_NETWORK` or `PRODUCTION_PODMAN_NETWORK` set, the bundle runs in a temporary Podman container attached to that network.
 - The web app uses `RocketReps.ServiceDefaults` for Aspire telemetry, service discovery, resilience, and health endpoints.
 - `RocketReps.Web` uses Entity Framework Core Identity with PostgreSQL via `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL`; do not reintroduce SQLite unless explicitly requested.
 - Rocket Reps is a teacher-first spaced-repetition classroom study app for elementary and middle school students, currently themed around Riverview STEM Academy Rockets.

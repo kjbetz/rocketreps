@@ -50,7 +50,9 @@ This keeps the experience simple while leaving room to integrate FSRS behind a s
 - `RocketReps.Web`: Blazor web application.
 - `RocketReps.Web/Data`: EF Core Identity context, domain models, migrations, and seed data.
 - `RocketReps.Web/Components`: Blazor routes, layout, account pages, and app UI.
+- `RocketReps.Web/Dockerfile`: production container image build for the web app.
 - `RocketReps.ServiceDefaults`: Aspire service defaults for telemetry, resilience, discovery, and health endpoints.
+- `scripts/ci/apply-ef-bundle.sh`: VPS-side EF migration bundle runner used by deploy workflows.
 - `rocketreps.slnx`: .NET solution file for the repository.
 
 ## Local Development
@@ -75,13 +77,37 @@ dotnet ef migrations add <Name> --project RocketReps.Web/RocketReps.Web.csproj -
 
 In development, pending migrations are applied automatically on startup. The local PostgreSQL resource is currently session-scoped, so local data may be recreated between Aspire sessions.
 
-The Aspire AppHost also starts pgWeb for the PostgreSQL resource. Open it from the Aspire dashboard when you need to inspect the local `rocketrepsdb` database.
+The Aspire AppHost also starts pgWeb for the PostgreSQL resource. Open it from the Aspire dashboard when you need to inspect the local `rocketreps` database.
 
 After changing compiled code while Aspire is running, rebuild the web resource instead of restarting the full AppHost when possible:
 
 ```bash
 aspire resource web rebuild
 ```
+
+## Deployment
+
+GitHub Actions handles container builds, EF migration bundles, and VPS deploys:
+
+- Staging runs on every push to `main`.
+- Production runs only when a `v*` tag is pushed.
+- Staging publishes `ghcr.io/kjbetz/rocketreps-web:staging` and `ghcr.io/kjbetz/rocketreps-web:sha-<commit>`.
+- Production promotes the tagged commit's `:sha-<commit>` image to `:prod` and `:<version-tag>`.
+- Deploy jobs run on the self-hosted runner labeled `self-hosted`, `linux`, and `rocketreps-vps`.
+- EF migrations are applied from a generated linux-x64 bundle before `podman auto-update` runs.
+
+Set these GitHub Actions variables for each environment:
+
+- `STAGING_WEB_ENV_FILE` or `PRODUCTION_WEB_ENV_FILE`: path to the web app env file on the VPS.
+- `STAGING_PODMAN_NETWORK` or `PRODUCTION_PODMAN_NETWORK`: Podman network where the database is reachable.
+
+The web env file must include the Rocket Reps connection string:
+
+```bash
+ConnectionStrings__rocketreps=Host=...;Port=5432;Database=rocketreps;Username=...;Password=...
+```
+
+When a Podman network variable is set, `scripts/ci/apply-ef-bundle.sh` runs the EF bundle in a temporary Podman container attached to that network so it can resolve the database host.
 
 ## Test Workflow
 

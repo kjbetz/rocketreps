@@ -1,0 +1,164 @@
+name: Production Promote & Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+  IMAGE_NAME: rocketreps-web
+
+jobs:
+  build-migration-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore solution
+        run: dotnet restore rocketreps.slnx
+
+      - name: Restore web project for linux-x64 bundle
+        run: dotnet restore RocketReps.Web/RocketReps.Web.csproj --runtime linux-x64
+
+      - name: Restore local dotnet tools
+        run: dotnet tool restore
+
+      - name: Build production EF migration bundle
+        env:
+          ConnectionStrings__rocketreps: Host=localhost;Port=5432;Database=rocketreps;Username=postgres;Password=postgres
+        run: |
+          mkdir -p artifacts
+          dotnet tool run dotnet-ef migrations bundle \
+            --project RocketReps.Web \
+            --startup-project RocketReps.Web \
+            --self-contained \
+            --runtime linux-x64 \
+            --output artifacts/rocketreps-efbundle
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rocketreps-efbundle-linux-x64
+          path: artifacts/rocketreps-efbundle
+          if-no-files-found: error
+
+  deploy-production:
+    needs: build-migration-bundle
+    runs-on: [self-hosted, linux, rocketreps-vps]
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rocketreps-efbundle-linux-x64
+          path: artifacts
+
+      - uses: imjasonh/setup-crane@v0.5
+
+      - name: Login to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: crane auth login $REGISTRY -u ${{ github.actor }} -p "$GITHUB_TOKEN"
+
+      - name: Promote tagged commit image to :prod and :${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          target_sha="$(git rev-parse HEAD)"
+          source_ref="$REGISTRY/$OWNER/$IMAGE_NAME:sha-${target_sha}"
+          max_attempts=20
+          delay_seconds=30
+          attempt=1
+
+          while true; do
+            if digest="$(crane digest "$source_ref")"; then
+              break
+            fi
+
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "Image not found after $attempt attempts: $source_ref" >&2
+              echo "The tagged commit must be built by the staging workflow before production can promote it." >&2
+              exit 1
+            fi
+
+            echo "Image not found yet: $source_ref. Retrying in ${delay_seconds}s..." >&2
+            sleep "$delay_seconds"
+            attempt=$((attempt + 1))
+          done
+
+          echo "Promoting $source_ref ($digest) -> :prod and :${GITHUB_REF_NAME}"
+          crane copy "$REGISTRY/$OWNER/$IMAGE_NAME@$digest" "$REGISTRY/$OWNER/$IMAGE_NAME:prod"
+          crane copy "$REGISTRY/$OWNER/$IMAGE_NAME@$digest" "$REGISTRY/$OWNER/$IMAGE_NAME:${GITHUB_REF_NAME}"
+
+      - name: Apply production EF migration bundle
+        shell: bash
+        env:
+          PRODUCTION_WEB_ENV_FILE: ${{ vars.PRODUCTION_WEB_ENV_FILE }}
+          PRODUCTION_PODMAN_NETWORK: ${{ vars.PRODUCTION_PODMAN_NETWORK }}
+          PRODUCTION_MIGRATION_CONTAINER_IMAGE: ${{ vars.PRODUCTION_MIGRATION_CONTAINER_IMAGE }}
+        run: |
+          set -euo pipefail
+          web_env_file="$PRODUCTION_WEB_ENV_FILE"
+          podman_network="$PRODUCTION_PODMAN_NETWORK"
+          migration_container_image="$PRODUCTION_MIGRATION_CONTAINER_IMAGE"
+
+          if [ -z "$web_env_file" ]; then
+            web_env_file="/etc/rocketreps/rocketreps-web.env"
+          fi
+
+          apply_args=(
+            --env-file "$web_env_file"
+            --bundle-path "artifacts/rocketreps-efbundle"
+          )
+
+          if [ -n "$podman_network" ]; then
+            apply_args+=(--podman-network "$podman_network")
+          fi
+
+          if [ -n "$migration_container_image" ]; then
+            apply_args+=(--container-image "$migration_container_image")
+          fi
+
+          bash scripts/ci/apply-ef-bundle.sh "${apply_args[@]}"
+
+      - name: Run podman auto-update (production)
+        shell: bash
+        env:
+          AUTO_UPDATE_MAX_ATTEMPTS: 5
+          AUTO_UPDATE_INITIAL_DELAY_SECONDS: 15
+        run: |
+          set -euo pipefail
+
+          max_attempts="${AUTO_UPDATE_MAX_ATTEMPTS:-5}"
+          delay_seconds="${AUTO_UPDATE_INITIAL_DELAY_SECONDS:-15}"
+          attempt=1
+
+          while true; do
+            if podman auto-update --dry-run && podman auto-update; then
+              break
+            fi
+
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "podman auto-update failed after $attempt attempts." >&2
+              exit 1
+            fi
+
+            echo "podman auto-update failed on attempt $attempt/$max_attempts. Retrying in ${delay_seconds}s..." >&2
+            sleep "$delay_seconds"
+            attempt=$((attempt + 1))
+            delay_seconds=$((delay_seconds * 2))
+          done
