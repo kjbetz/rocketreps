@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿@inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
+
+<!DOCTYPE html>
 <html lang="en" data-theme="@InitialTheme" data-theme-mode="@InitialThemeMode">
 
 <head>
@@ -31,6 +33,15 @@
     <ImportMap />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <HeadOutlet />
+    @if (HostEnvironment.IsProduction())
+    {
+        <!-- Privacy-friendly analytics by Plausible -->
+        <script async src="https://plausible.io/js/pa-GAvaXf3bwrxaCOvp2u2wQ.js"></script>
+        <script>
+            window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+            plausible.init()
+        </script>
+    }
 </head>
 
 <body>

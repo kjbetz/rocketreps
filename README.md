@@ -21,6 +21,7 @@ The app currently includes the foundation for the first vertical slice:
 - `/student` dashboard that shows active classroom deck assignments.
 - `/student/review/{assignmentId}` flow that records right/wrong reviews and updates student card progress.
 - Postmark-backed Identity emails for teacher account confirmation and password resets.
+- Plausible analytics rendered only in the Production environment.
 
 ## Product Direction
 
@@ -104,6 +105,7 @@ GitHub Actions handles container builds, EF migration bundles, and VPS deploys:
 - Production promotes the tagged commit's `:sha-<commit>` image to `:prod` and `:<version-tag>`.
 - Deploy jobs run on the self-hosted runner labeled `self-hosted`, `linux`, and `rocketreps-vps`.
 - EF migrations are applied from a generated linux-x64 bundle before `podman auto-update` runs.
+- Plausible analytics is gated by `HostEnvironment.IsProduction()` and is not emitted in local development or staging.
 
 Set these GitHub Actions variables for each environment:
 

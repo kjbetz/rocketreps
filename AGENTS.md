@@ -7,6 +7,7 @@
 - The local Aspire topology includes PostgreSQL (`postgres`) with pgWeb enabled and the `rocketreps` database resource wired into `RocketReps.Web`.
 - The app connection string key is `rocketreps`; deployed web env files should set `ConnectionStrings__rocketreps`.
 - Identity email is sent through Postmark. Deployed web env files should set `Postmark__ServerToken`, `Postmark__FromEmail`, and optionally `Postmark__MessageStream`.
+- Plausible analytics is rendered from `RocketReps.Web/Components/App.razor` only when `HostEnvironment.IsProduction()` is true; do not enable analytics for non-production environments unless explicitly requested.
 - GitHub Actions deploys staging on every push to `main` and promotes production only from `v*` tags.
 - The deployment runner is self-hosted on the VPS with labels `[self-hosted, linux, rocketreps-vps]`.
 - Staging publishes `ghcr.io/kjbetz/rocketreps-web:staging` and `:sha-<commit>`; production promotes the tagged commit's `:sha-<commit>` image to `:prod` and `:<version-tag>`.
