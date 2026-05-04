@@ -22,6 +22,9 @@ builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuth
 builder.Services.AddOptions<RocketRepsDataProtectionOptions>()
     .Bind(builder.Configuration.GetSection(RocketRepsDataProtectionOptions.SectionName));
 
+builder.Services.AddOptions<PostmarkEmailOptions>()
+    .Bind(builder.Configuration.GetSection(PostmarkEmailOptions.SectionName));
+
 var dataProtectionOptions = builder.Configuration
     .GetSection(RocketRepsDataProtectionOptions.SectionName)
     .Get<RocketRepsDataProtectionOptions>() ?? new();
@@ -57,7 +60,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, PostmarkIdentityEmailSender>();
 
 var app = builder.Build();
 var appDataProtectionOptions = app.Services.GetRequiredService<IOptions<RocketRepsDataProtectionOptions>>().Value;

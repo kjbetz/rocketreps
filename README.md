@@ -20,6 +20,7 @@ The app currently includes the foundation for the first vertical slice:
 - `/teacher` dashboard for classroom creation, student login generation, stock deck assignment, and active/inactive deck toggles.
 - `/student` dashboard that shows active classroom deck assignments.
 - `/student/review/{assignmentId}` flow that records right/wrong reviews and updates student card progress.
+- Postmark-backed Identity emails for teacher account confirmation and password resets.
 
 ## Product Direction
 
@@ -79,6 +80,14 @@ In development, pending migrations are applied automatically on startup. The loc
 
 The Aspire AppHost also starts pgWeb for the PostgreSQL resource. Open it from the Aspire dashboard when you need to inspect the local `rocketreps` database.
 
+Identity emails are sent through Postmark. For local email testing, configure the web project's user secrets or environment variables with a Postmark server token and a verified sender:
+
+```bash
+dotnet user-secrets set "Postmark:ServerToken" "..." --project RocketReps.Web/RocketReps.Web.csproj
+dotnet user-secrets set "Postmark:FromEmail" "no-reply@example.com" --project RocketReps.Web/RocketReps.Web.csproj
+dotnet user-secrets set "Postmark:MessageStream" "outbound" --project RocketReps.Web/RocketReps.Web.csproj
+```
+
 After changing compiled code while Aspire is running, rebuild the web resource instead of restarting the full AppHost when possible:
 
 ```bash
@@ -101,14 +110,17 @@ Set these GitHub Actions variables for each environment:
 - `STAGING_WEB_ENV_FILE` or `PRODUCTION_WEB_ENV_FILE`: path to the web app env file on the VPS.
 - `STAGING_PODMAN_NETWORK` or `PRODUCTION_PODMAN_NETWORK`: Podman network where the database is reachable.
 
-The web env file must include the Rocket Reps connection string and should configure a mounted data protection keys directory:
+The web env file must include the Rocket Reps connection string and Postmark settings for account confirmation and password reset emails. It should also configure a mounted data protection keys directory:
 
 ```bash
 ConnectionStrings__rocketreps=Host=...;Port=5432;Database=rocketreps;Username=...;Password=...
 DataProtection__KeysDirectory=/var/rocketreps/data-protection-keys
+Postmark__ServerToken=...
+Postmark__FromEmail=no-reply@example.com
+Postmark__MessageStream=outbound
 ```
 
-Mount `DataProtection__KeysDirectory` to persistent VPS storage for the web container. This preserves antiforgery and auth cookies across deploys.
+Mount `DataProtection__KeysDirectory` to persistent VPS storage for the web container. This preserves antiforgery and auth cookies across deploys. `Postmark__FromEmail` must be a verified sender signature or domain address in Postmark.
 
 When a Podman network variable is set, `scripts/ci/apply-ef-bundle.sh` runs the EF bundle in a temporary Podman container attached to that network so it can resolve the database host.
 
@@ -117,7 +129,7 @@ When a Podman network variable is set, `scripts/ci/apply-ef-bundle.sh` runs the 
 To exercise the current vertical slice locally:
 
 1. Register a teacher at `/Account/Register`.
-2. Confirm the teacher account using the development confirmation link.
+2. Confirm the teacher account from the Postmark-delivered confirmation email.
 3. Open `/teacher` and create a classroom.
 4. Generate a student login and save the displayed username/password.
 5. Assign a stock deck to the classroom and leave it active, or activate it from the assignment card.
