@@ -78,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          target_sha="$(git rev-parse HEAD)"
+          target_sha="$GITHUB_SHA"
           source_ref="$REGISTRY/$OWNER/$IMAGE_NAME:sha-${target_sha}"
           max_attempts=20
           delay_seconds=30
