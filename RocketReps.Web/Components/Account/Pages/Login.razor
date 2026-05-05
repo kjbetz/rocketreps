@@ -106,10 +106,15 @@
         }
 
         SignInResult result;
+        ApplicationUser? signedInUser = null;
         if (!string.IsNullOrEmpty(Input.Passkey?.CredentialJson))
         {
             // When performing passkey sign-in, don't perform form validation.
             result = await SignInManager.PasskeySignInAsync(Input.Passkey.CredentialJson);
+            if (result.Succeeded)
+            {
+                signedInUser = await FindUserByLoginAsync(Input.Login);
+            }
         }
         else
         {
@@ -122,19 +127,20 @@
             // This doesn't count login failures towards account lockout
             // To enable password failures to trigger account lockout, set lockoutOnFailure: true
             var loginName = Input.Login.Trim();
-            if (loginName.Contains('@', StringComparison.Ordinal))
-            {
-                var user = await UserManager.FindByEmailAsync(loginName);
-                loginName = user?.UserName ?? loginName;
-            }
+            signedInUser = await FindUserByLoginAsync(loginName);
+            loginName = signedInUser?.UserName ?? loginName;
 
             result = await SignInManager.PasswordSignInAsync(loginName, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+            if (!result.Succeeded)
+            {
+                signedInUser = null;
+            }
         }
 
         if (result.Succeeded)
         {
             Logger.LogInformation("User logged in.");
-            RedirectManager.RedirectTo(ReturnUrl);
+            await RedirectManager.RedirectToReturnUrlOrDashboardAsync(ReturnUrl, signedInUser, UserManager);
         }
         else if (result.RequiresTwoFactor)
         {
@@ -151,6 +157,26 @@
         {
             errorMessage = "Error: Invalid login attempt.";
         }
+    }
+
+    private async Task<ApplicationUser?> FindUserByLoginAsync(string login)
+    {
+        login = login.Trim();
+        if (string.IsNullOrEmpty(login))
+        {
+            return null;
+        }
+
+        if (login.Contains('@', StringComparison.Ordinal))
+        {
+            var userByEmail = await UserManager.FindByEmailAsync(login);
+            if (userByEmail is not null)
+            {
+                return userByEmail;
+            }
+        }
+
+        return await UserManager.FindByNameAsync(login);
     }
 
     private sealed class InputModel

@@ -19,6 +19,7 @@
 - Development startup seeding lives in `RocketReps.Web/Data/ApplicationDataSeeder.cs` and creates `Riverview STEM Academy`, `Admin`/`Teacher`/`Student` roles, and stock math decks.
 - Keep seeded stock decks programmatic unless there is a strong reason to move large content sets into migrations.
 - Current onboarding is teacher-first: teachers self-register, create classrooms, generate student logins, assign decks, and toggle classroom deck assignments active/inactive.
+- When no explicit `ReturnUrl` is present, post-auth redirects should be role-aware: teachers land on `/teacher` and students land on `/student`.
 - Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting is needed.
 - The app intentionally uses custom CSS and should not use Bootstrap or a UI component library unless explicitly requested.
 - The student review UX should stay age-appropriate. The visible interaction is binary right/wrong, mapped internally to FSRS.Core `Again`/`Good` ratings.

@@ -17,6 +17,7 @@ The app currently includes the foundation for the first vertical slice:
 - Custom Rocket Reps landing page and responsive navigation using custom CSS instead of Bootstrap.
 - `/decks` page that lists seeded stock decks.
 - Teacher-focused registration that assigns the `Teacher` role.
+- Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
 - `/teacher` dashboard for classroom creation, student login generation, stock deck assignment, and active/inactive deck toggles.
 - `/student` dashboard that shows active classroom deck assignments.
 - `/student/review/{assignmentId}` flow that records right/wrong reviews, schedules cards with FSRS.Core, and updates student card progress.
@@ -137,8 +138,8 @@ To exercise the current vertical slice locally:
 3. Open `/teacher` and create a classroom.
 4. Generate a student login and save the displayed username/password.
 5. Assign a stock deck to the classroom and leave it active, or activate it from the assignment card.
-6. Log out and log in with the generated student username/password.
-7. Open `/student` and start the active deck mission.
+6. Log out and log in with the generated student username/password; the student should land on `/student`.
+7. Start the active deck mission.
 
 ## Seed Data
 

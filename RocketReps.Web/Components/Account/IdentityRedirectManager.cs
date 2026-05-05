@@ -36,6 +36,32 @@ internal sealed class IdentityRedirectManager(NavigationManager navigationManage
         RedirectTo(newUri);
     }
 
+    public async Task RedirectToReturnUrlOrDashboardAsync(
+        string? returnUrl,
+        ApplicationUser? user,
+        UserManager<ApplicationUser> userManager)
+    {
+        if (!string.IsNullOrEmpty(returnUrl))
+        {
+            RedirectTo(returnUrl);
+            return;
+        }
+
+        if (user is not null && await userManager.IsInRoleAsync(user, "Teacher"))
+        {
+            RedirectTo("teacher");
+            return;
+        }
+
+        if (user is not null && await userManager.IsInRoleAsync(user, "Student"))
+        {
+            RedirectTo("student");
+            return;
+        }
+
+        RedirectTo("");
+    }
+
     public void RedirectToWithStatus(string uri, string message, HttpContext context)
     {
         context.Response.Cookies.Append(StatusCookieName, message, StatusCookieBuilder.Build(context));

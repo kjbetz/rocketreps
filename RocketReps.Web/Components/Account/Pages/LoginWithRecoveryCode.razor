@@ -63,7 +63,7 @@
         if (result.Succeeded)
         {
             Logger.LogInformation("User with ID '{UserId}' logged in with a recovery code.", userId);
-            RedirectManager.RedirectTo(ReturnUrl);
+            await RedirectManager.RedirectToReturnUrlOrDashboardAsync(ReturnUrl, user, UserManager);
         }
         else if (result.IsLockedOut)
         {

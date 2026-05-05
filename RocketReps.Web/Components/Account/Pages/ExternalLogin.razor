@@ -121,7 +121,8 @@
                 "{Name} logged in with {LoginProvider} provider.",
                 externalLoginInfo.Principal.Identity?.Name,
                 externalLoginInfo.LoginProvider);
-            RedirectManager.RedirectTo(ReturnUrl);
+            var user = await UserManager.FindByLoginAsync(externalLoginInfo.LoginProvider, externalLoginInfo.ProviderKey);
+            await RedirectManager.RedirectToReturnUrlOrDashboardAsync(ReturnUrl, user, UserManager);
             return;
         }
         else if (result.IsLockedOut)
@@ -176,7 +177,7 @@
                 else
                 {
                     await SignInManager.SignInAsync(user, isPersistent: false, externalLoginInfo.LoginProvider);
-                    RedirectManager.RedirectTo(ReturnUrl);
+                    await RedirectManager.RedirectToReturnUrlOrDashboardAsync(ReturnUrl, user, UserManager);
                 }
             }
         }

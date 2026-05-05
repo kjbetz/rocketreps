@@ -141,7 +141,7 @@
         else
         {
             await SignInManager.SignInAsync(user, isPersistent: false);
-            RedirectManager.RedirectTo(ReturnUrl);
+            await RedirectManager.RedirectToReturnUrlOrDashboardAsync(ReturnUrl, user, UserManager);
         }
     }
 
