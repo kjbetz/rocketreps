@@ -34,10 +34,21 @@
 
     const resolveTheme = (mode) => mode === "system" && systemDarkQuery.matches ? "dark" : mode === "dark" ? "dark" : "light";
 
+    const nextMode = (mode) => mode === "system" ? "light" : mode === "light" ? "dark" : "system";
+
+    const modeLabel = (mode) => mode.charAt(0).toUpperCase() + mode.slice(1);
+
     const syncControls = (mode) => {
         document.querySelectorAll("[data-theme-switcher]").forEach((control) => {
-            if (control.value !== mode) {
+            if (control instanceof HTMLSelectElement && control.value !== mode) {
                 control.value = mode;
+            }
+
+            if (control instanceof HTMLButtonElement) {
+                const label = modeLabel(mode);
+                control.dataset.themeMode = mode;
+                control.setAttribute("aria-label", `Theme preference: ${label}`);
+                control.title = `Theme: ${label}`;
             }
         });
     };
@@ -63,7 +74,13 @@
         applyTheme(currentMode(), false);
 
         document.querySelectorAll("[data-theme-switcher]").forEach((control) => {
-            control.addEventListener("change", (event) => applyTheme(event.currentTarget.value));
+            if (control instanceof HTMLSelectElement) {
+                control.addEventListener("change", (event) => applyTheme(event.currentTarget.value));
+            }
+
+            if (control instanceof HTMLButtonElement) {
+                control.addEventListener("click", () => applyTheme(nextMode(currentMode())));
+            }
         });
     });
 

@@ -18,12 +18,17 @@
         <NavLink class="nav-link" href="decks">Stock Decks</NavLink>
 
         <div class="theme-switcher" onclick="event.stopPropagation()">
-            <label class="theme-switcher-label" for="theme-preference">Theme</label>
-            <select id="theme-preference" class="theme-select" data-theme-switcher aria-label="Theme preference">
-                <option value="system" selected>System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-            </select>
+            <button type="button" class="theme-button" data-theme-switcher aria-label="Theme preference: System" title="Theme: System">
+                <svg class="theme-icon theme-icon-system" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18Zm0 2v14a7 7 0 0 1 0-14Z" />
+                </svg>
+                <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5.5a1 1 0 0 1-1-1V3a1 1 0 1 1 2 0v1.5a1 1 0 0 1-1 1Zm0 15.5a1 1 0 0 1-1-1v-1.5a1 1 0 1 1 2 0V20a1 1 0 0 1-1 1Zm9-9a1 1 0 0 1-1 1h-1.5a1 1 0 1 1 0-2H20a1 1 0 0 1 1 1ZM6.5 12a1 1 0 0 1-1 1H4a1 1 0 1 1 0-2h1.5a1 1 0 0 1 1 1Zm10.95-5.45a1 1 0 0 1 0-1.42l1.06-1.06a1 1 0 1 1 1.42 1.42l-1.06 1.06a1 1 0 0 1-1.42 0ZM4.07 19.93a1 1 0 0 1 0-1.42l1.06-1.06a1 1 0 0 1 1.42 1.42l-1.06 1.06a1 1 0 0 1-1.42 0Zm15.86 0a1 1 0 0 1-1.42 0l-1.06-1.06a1 1 0 0 1 1.42-1.42l1.06 1.06a1 1 0 0 1 0 1.42ZM6.55 6.55a1 1 0 0 1-1.42 0L4.07 5.49a1 1 0 0 1 1.42-1.42l1.06 1.06a1 1 0 0 1 0 1.42ZM12 8a4 4 0 1 1 0 8a4 4 0 0 1 0-8Z" />
+                </svg>
+                <svg class="theme-icon theme-icon-dark" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M20.26 14.54a1 1 0 0 1 .15 1.03A8.9 8.9 0 0 1 12 21a9 9 0 0 1-3.57-17.26a1 1 0 0 1 1.25 1.38a6.7 6.7 0 0 0-.77 3.13a6.84 6.84 0 0 0 6.84 6.84a6.7 6.7 0 0 0 3.13-.77a1 1 0 0 1 1.38.22Z" />
+                </svg>
+            </button>
         </div>
 
         <AuthorizeView>

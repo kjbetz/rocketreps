@@ -14,6 +14,7 @@ The app currently includes the foundation for the first vertical slice:
 - Startup seeding for `Admin`, `Teacher`, and `Student` roles plus `Riverview STEM Academy`.
 - Global stock math decks for addition, subtraction, multiplication, and division facts.
 - Custom Rocket Reps landing page and responsive navigation using custom CSS instead of Bootstrap.
+- Light/dark/system theme preference from a compact icon button in the top bar.
 - `/decks` page that lists seeded stock decks.
 - Teacher-focused registration that assigns the `Teacher` role.
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
@@ -159,6 +160,7 @@ The stock math decks generate facts programmatically instead of storing hundreds
 
 - Do not reintroduce Bootstrap or a UI component library unless explicitly requested.
 - Keep the visual language custom, modern, and kid-friendly with a space/rocket theme.
+- Keep the top bar compact and accessible; theme switching should remain an icon-button interaction that supports light, dark, and system preferences.
 - Preserve privacy-minded defaults because the target users are elementary and middle school students.
 - Prefer small vertical slices over broad platform features.
 - Keep student auth on ASP.NET Core Identity, but expose a username/password experience created by teachers rather than student self-registration.

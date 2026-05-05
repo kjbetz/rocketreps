@@ -22,6 +22,7 @@
 - When no explicit `ReturnUrl` is present, post-auth redirects should be role-aware: teachers land on `/teacher` and students land on `/student`.
 - Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting is needed.
 - The app intentionally uses custom CSS and should not use Bootstrap or a UI component library unless explicitly requested.
+- Keep the shared top bar compact and accessible; theme switching should remain an icon-button interaction that supports light, dark, and system preferences.
 - The student review UX should stay age-appropriate. The visible interaction is binary right/wrong, mapped internally to FSRS.Core `Again`/`Good` ratings.
 - Review scheduling uses `FSRS.Core` through `RocketReps.Web/ReviewScheduling`. RocketReps defaults are `0.9` desired retention, learning steps of `1m` and `10m`, a `5m` relearning step, and a `365` day maximum interval.
 - Student review card selection is dynamic: due cards first by oldest `StudentCardProgress.DueAt`, then a random new card, then an all-done state when no due or new cards are available. Keep the 20-card break prompt age-appropriate.
