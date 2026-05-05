@@ -10,15 +10,7 @@ public static class ApplicationDataSeeder
     public static async Task SeedAsync(IServiceProvider services)
     {
         var dbContext = services.GetRequiredService<ApplicationDbContext>();
-        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-
-        foreach (var role in Roles)
-        {
-            if (!await roleManager.RoleExistsAsync(role))
-            {
-                await roleManager.CreateAsync(new IdentityRole(role));
-            }
-        }
+        await SeedIdentityRolesAsync(services);
 
         var riverview = await dbContext.Schools.SingleOrDefaultAsync(school => school.Name == "Riverview STEM Academy");
         if (riverview is null)
@@ -39,6 +31,23 @@ public static class ApplicationDataSeeder
         await SeedMathDeckAsync(dbContext, "Division Docking", "Practice division facts connected to the 1 through 12 times tables.", BuildDivisionCards());
 
         await dbContext.SaveChangesAsync();
+    }
+
+    public static async Task SeedIdentityRolesAsync(IServiceProvider services)
+    {
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+
+        foreach (var role in Roles)
+        {
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                var result = await roleManager.CreateAsync(new IdentityRole(role));
+                if (!result.Succeeded)
+                {
+                    throw new InvalidOperationException($"Failed to create identity role '{role}': {string.Join(", ", result.Errors.Select(error => error.Description))}");
+                }
+            }
+        }
     }
 
     private static async Task SeedMathDeckAsync(ApplicationDbContext dbContext, string title, string description, IReadOnlyList<MathFactSeed> facts)

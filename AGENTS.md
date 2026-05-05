@@ -16,7 +16,7 @@
 - `RocketReps.Web` uses Entity Framework Core Identity with PostgreSQL via `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL`; do not reintroduce SQLite unless explicitly requested.
 - Rocket Reps is a teacher-first spaced-repetition classroom study app for elementary and middle school students, currently themed around Riverview STEM Academy Rockets.
 - The current domain model includes schools, classrooms, classroom memberships, decks, cards, deck assignments, student card progress, and review logs.
-- Development startup seeding lives in `RocketReps.Web/Data/ApplicationDataSeeder.cs` and creates `Riverview STEM Academy`, `Admin`/`Teacher`/`Student` roles, and stock math decks.
+- Startup seeding lives in `RocketReps.Web/Data/ApplicationDataSeeder.cs` and creates missing baseline data in every environment: `Riverview STEM Academy`, `Admin`/`Teacher`/`Student` roles, and stock math decks. Non-development startup assumes EF migrations have already been applied by deployment.
 - Keep seeded stock decks programmatic unless there is a strong reason to move large content sets into migrations.
 - Current onboarding is teacher-first: teachers self-register, create classrooms, generate student logins, assign decks, and toggle classroom deck assignments active/inactive.
 - When no explicit `ReturnUrl` is present, post-auth redirects should be role-aware: teachers land on `/teacher` and students land on `/student`.

@@ -11,8 +11,7 @@ The app currently includes the foundation for the first vertical slice:
 - ASP.NET Core Blazor app using Identity for authentication.
 - PostgreSQL database wired through Aspire, with pgWeb available from the Aspire dashboard for local database inspection.
 - EF Core domain schema for schools, classrooms, memberships, decks, cards, assignments, student card progress, and review logs.
-- Roles seeded for `Admin`, `Teacher`, and `Student`.
-- Development data seeding for `Riverview STEM Academy`.
+- Startup seeding for `Admin`, `Teacher`, and `Student` roles plus `Riverview STEM Academy`.
 - Global stock math decks for addition, subtraction, multiplication, and division facts.
 - Custom Rocket Reps landing page and responsive navigation using custom CSS instead of Bootstrap.
 - `/decks` page that lists seeded stock decks.
@@ -108,6 +107,7 @@ GitHub Actions handles container builds, EF migration bundles, and VPS deploys:
 - Production promotes the tagged commit's `:sha-<commit>` image to `:prod` and `:<version-tag>`.
 - Deploy jobs run on the self-hosted runner labeled `self-hosted`, `linux`, and `rocketreps-vps`.
 - EF migrations are applied from a generated linux-x64 bundle before `podman auto-update` runs.
+- App startup seeds identity roles, `Riverview STEM Academy`, and stock math decks after the deployment-applied schema is available.
 - Plausible analytics is gated by `HostEnvironment.IsProduction()` and is not emitted in local development or staging.
 
 Set these GitHub Actions variables for each environment:
@@ -143,7 +143,7 @@ To exercise the current vertical slice locally:
 
 ## Seed Data
 
-Development startup seeding creates:
+Startup seeding creates missing baseline data in every environment:
 
 - School: `Riverview STEM Academy`
 - Roles: `Admin`, `Teacher`, `Student`
