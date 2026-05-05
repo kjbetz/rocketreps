@@ -133,6 +133,8 @@ public sealed class StudentCardProgress
     public int LapseCount { get; set; }
     public double? Stability { get; set; }
     public double? Difficulty { get; set; }
+    public string FsrsState { get; set; } = "Learning";
+    public int? FsrsStep { get; set; }
     public ReviewRating? LastRating { get; set; }
     public DateTimeOffset? LastReviewedAt { get; set; }
 

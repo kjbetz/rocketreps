@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using FSRS.Core.Configurations;
 using RocketReps.Web.Components;
 using RocketReps.Web.Components.Account;
 using RocketReps.Web.Data;
+using RocketReps.Web.ReviewScheduling;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,6 +50,42 @@ builder.Services.AddAuthentication(options =>
 
 builder.AddNpgsqlDbContext<ApplicationDbContext>("rocketreps");
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+var fsrsSection = builder.Configuration.GetSection("Fsrs");
+var hasParameters = fsrsSection.GetSection("Parameters").Exists();
+var hasLearningSteps = fsrsSection.GetSection("LearningSteps").Exists();
+var hasRelearningSteps = fsrsSection.GetSection("RelearningSteps").Exists();
+
+builder.Services.AddOptions<SchedulerOptions>()
+    .Bind(fsrsSection)
+    .Configure(options =>
+    {
+        if (!hasParameters || options.Parameters is null || options.Parameters.Length == 0)
+        {
+            options.Parameters = FsrsDefaults.DefaultParameters();
+        }
+
+        if (!hasLearningSteps || options.LearningSteps is null || options.LearningSteps.Length == 0)
+        {
+            options.LearningSteps = FsrsDefaults.DefaultLearningSteps();
+        }
+
+        if (!hasRelearningSteps || options.RelearningSteps is null || options.RelearningSteps.Length == 0)
+        {
+            options.RelearningSteps = FsrsDefaults.DefaultRelearningSteps();
+        }
+
+        if (options.MaximumInterval <= 0)
+        {
+            options.MaximumInterval = FsrsDefaults.MaximumIntervalDays;
+        }
+
+        if (options.DesiredRetention <= 0)
+        {
+            options.DesiredRetention = FsrsDefaults.DefaultDesiredRetention;
+        }
+    });
+builder.Services.AddSingleton<FsrsReviewScheduler>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {

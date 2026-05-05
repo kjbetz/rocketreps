@@ -7,9 +7,11 @@
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
 @using RocketReps.Web.Data
+@using RocketReps.Web.ReviewScheduling
 @inject ApplicationDbContext DbContext
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<ApplicationUser> UserManager
+@inject FsrsReviewScheduler ReviewScheduler
 
 <PageTitle>Review Mission</PageTitle>
 
@@ -33,11 +35,21 @@ else if (assignment is not null)
         <p>Answer the card, then Rocket Reps will schedule the next review from right or wrong.</p>
     </section>
 
-    @if (currentCard is null)
+    @if (showBreakPrompt)
     {
         <section class="content-card review-complete">
-            <h2>Mission round complete.</h2>
-            <p class="status-muted">Nice work. You reviewed @completedCount cards in this round.</p>
+            <p class="eyebrow">Mission checkpoint</p>
+            <h2>Great launch. You reviewed @completedCount cards.</h2>
+            <p class="status-muted">Want to keep going or take a break?</p>
+            <button type="button" class="button-primary" @onclick="ContinueReviewAsync">Keep going</button>
+            <a class="button-secondary" href="student">Back to missions</a>
+        </section>
+    }
+    else if (currentCard is null)
+    {
+        <section class="content-card review-complete">
+            <h2>All done for now.</h2>
+            <p class="status-muted">You reviewed @completedCount cards. Check back later for your next review.</p>
             <a class="button-primary" href="student">Back to missions</a>
         </section>
     }
@@ -45,7 +57,7 @@ else if (assignment is not null)
     {
         <section class="review-shell">
             <div class="review-progress">
-                Card @(currentIndex + 1) of @cards.Count
+                Reviewed @completedCount this session · @(currentCard.IsDue ? "Review card" : "New card")
             </div>
             <article class="review-card">
                 <p class="eyebrow">Question</p>
@@ -60,7 +72,9 @@ else if (assignment is not null)
                             <InputText @bind-Value="answerInput.Answer" id="StudentAnswer" class="field-input review-answer" autocomplete="off" autofocus />
                             <label for="StudentAnswer">Your answer</label>
                         </div>
-                        <button type="submit" class="button-primary button-full">Check answer</button>
+                        <button type="submit" class="button-primary button-full" disabled="@isSubmitting">
+                            @(isSubmitting ? "Checking..." : "Check answer")
+                        </button>
                     </EditForm>
                 }
                 else
@@ -69,7 +83,9 @@ else if (assignment is not null)
                         <strong>@(feedback.WasCorrect ? "Correct!" : "Not yet.")</strong>
                         <span>The answer is @feedback.CorrectAnswer.</span>
                     </div>
-                    <button type="button" class="button-primary button-full" @onclick="MoveNext">Next card</button>
+                    <button type="button" class="button-primary button-full" disabled="@isMovingNext" @onclick="MoveNextAsync">
+                        @(isMovingNext ? "Loading..." : "Next card")
+                    </button>
                 }
             </article>
         </section>
@@ -80,15 +96,17 @@ else if (assignment is not null)
     [Parameter]
     public Guid AssignmentId { get; set; }
 
+    private const int BreakPromptCardCount = 20;
     private readonly AnswerInput answerInput = new();
     private ApplicationUser? currentStudent;
     private AssignmentHeader? assignment;
-    private List<ReviewCard> cards = [];
     private ReviewCard? currentCard;
     private AnswerFeedback? feedback;
     private bool isLoading = true;
+    private bool isSubmitting;
+    private bool isMovingNext;
+    private bool showBreakPrompt;
     private string? loadError;
-    private int currentIndex;
     private int completedCount;
 
     protected override async Task OnInitializedAsync()
@@ -124,74 +142,174 @@ else if (assignment is not null)
             return;
         }
 
-        cards = await DbContext.Cards
-            .Where(card => card.DeckId == assignment.DeckId)
-            .OrderBy(card => card.SortOrder)
-            .Select(card => new ReviewCard(card.Id, card.Front, card.Back, card.CorrectAnswer))
-            .ToListAsync();
-
-        currentCard = cards.FirstOrDefault();
+        currentCard = await LoadNextCardAsync();
         isLoading = false;
     }
 
     private async Task SubmitAnswerAsync()
     {
-        if (currentStudent is null || currentCard is null || assignment is null)
+        if (isSubmitting || currentStudent is null || currentCard is null || assignment is null)
         {
             return;
         }
 
-        var correctAnswer = currentCard.CorrectAnswer ?? currentCard.Back;
-        var wasCorrect = NormalizeAnswer(answerInput.Answer) == NormalizeAnswer(correctAnswer);
-        var rating = wasCorrect ? ReviewRating.Good : ReviewRating.Again;
-        var interval = wasCorrect ? TimeSpan.FromDays(1) : TimeSpan.FromMinutes(10);
-        var now = DateTimeOffset.UtcNow;
-        var nextDueAt = now.Add(interval);
-
-        var progress = await DbContext.StudentCardProgress
-            .SingleOrDefaultAsync(existingProgress => existingProgress.UserId == currentStudent.Id && existingProgress.CardId == currentCard.Id);
-
-        if (progress is null)
+        isSubmitting = true;
+        try
         {
-            progress = new StudentCardProgress
+            var correctAnswer = currentCard.CorrectAnswer ?? currentCard.Back;
+            var wasCorrect = NormalizeAnswer(answerInput.Answer) == NormalizeAnswer(correctAnswer);
+            var rating = wasCorrect ? ReviewRating.Good : ReviewRating.Again;
+            var now = DateTimeOffset.UtcNow;
+
+            var progress = await DbContext.StudentCardProgress
+                .SingleOrDefaultAsync(existingProgress => existingProgress.UserId == currentStudent.Id && existingProgress.CardId == currentCard.Id);
+
+            if (progress is null)
+            {
+                progress = new StudentCardProgress
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = currentStudent.Id,
+                    CardId = currentCard.Id,
+                    DueAt = now,
+                };
+                DbContext.StudentCardProgress.Add(progress);
+            }
+
+            var schedule = ReviewScheduler.Review(progress, rating, now);
+
+            progress.DueAt = schedule.NextDueAt;
+            progress.ReviewCount++;
+            progress.LapseCount += wasCorrect ? 0 : 1;
+            progress.Stability = schedule.Stability;
+            progress.Difficulty = schedule.Difficulty;
+            progress.FsrsState = schedule.FsrsState;
+            progress.FsrsStep = schedule.FsrsStep;
+            progress.LastRating = rating;
+            progress.LastReviewedAt = now;
+
+            DbContext.ReviewLogs.Add(new ReviewLog
             {
                 Id = Guid.NewGuid(),
                 UserId = currentStudent.Id,
                 CardId = currentCard.Id,
-            };
-            DbContext.StudentCardProgress.Add(progress);
+                DeckAssignmentId = assignment.AssignmentId,
+                ReviewedAt = now,
+                WasCorrect = wasCorrect,
+                Rating = rating,
+                ScheduledInterval = schedule.ScheduledInterval,
+                NextDueAt = schedule.NextDueAt,
+            });
+
+            await DbContext.SaveChangesAsync();
+            completedCount++;
+            feedback = new AnswerFeedback(wasCorrect, correctAnswer);
         }
-
-        progress.DueAt = nextDueAt;
-        progress.ReviewCount++;
-        progress.LapseCount += wasCorrect ? 0 : 1;
-        progress.LastRating = rating;
-        progress.LastReviewedAt = now;
-
-        DbContext.ReviewLogs.Add(new ReviewLog
+        finally
         {
-            Id = Guid.NewGuid(),
-            UserId = currentStudent.Id,
-            CardId = currentCard.Id,
-            DeckAssignmentId = assignment.AssignmentId,
-            ReviewedAt = now,
-            WasCorrect = wasCorrect,
-            Rating = rating,
-            ScheduledInterval = interval,
-            NextDueAt = nextDueAt,
-        });
-
-        await DbContext.SaveChangesAsync();
-        completedCount++;
-        feedback = new AnswerFeedback(wasCorrect, correctAnswer);
+            isSubmitting = false;
+        }
     }
 
-    private void MoveNext()
+    private async Task MoveNextAsync()
     {
-        currentIndex++;
-        currentCard = currentIndex < cards.Count ? cards[currentIndex] : null;
+        if (isMovingNext)
+        {
+            return;
+        }
+
+        isMovingNext = true;
         answerInput.Answer = string.Empty;
         feedback = null;
+
+        if (completedCount > 0 && completedCount % BreakPromptCardCount == 0 && await HasEligibleCardAsync())
+        {
+            showBreakPrompt = true;
+            currentCard = null;
+            isMovingNext = false;
+            return;
+        }
+
+        currentCard = await LoadNextCardAsync();
+        isMovingNext = false;
+    }
+
+    private async Task ContinueReviewAsync()
+    {
+        showBreakPrompt = false;
+        currentCard = await LoadNextCardAsync();
+    }
+
+    private async Task<ReviewCard?> LoadNextCardAsync()
+    {
+        if (currentStudent is null || assignment is null)
+        {
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var dueCard = await DbContext.StudentCardProgress
+            .Where(progress => progress.UserId == currentStudent.Id &&
+                progress.DueAt <= now &&
+                progress.Card != null &&
+                progress.Card.DeckId == assignment.DeckId)
+            .OrderBy(progress => progress.DueAt)
+            .ThenBy(progress => progress.Card!.SortOrder)
+            .Select(progress => new ReviewCard(
+                progress.CardId,
+                progress.Card!.Front,
+                progress.Card.Back,
+                progress.Card.CorrectAnswer,
+                true))
+            .FirstOrDefaultAsync();
+
+        if (dueCard is not null)
+        {
+            return dueCard;
+        }
+
+        var newCards = DbContext.Cards
+            .Where(card => card.DeckId == assignment.DeckId &&
+                !DbContext.StudentCardProgress.Any(progress =>
+                    progress.UserId == currentStudent.Id && progress.CardId == card.Id))
+            .OrderBy(card => card.Id);
+        var newCardCount = await newCards.CountAsync();
+
+        if (newCardCount == 0)
+        {
+            return null;
+        }
+
+        var randomIndex = Random.Shared.Next(newCardCount);
+        return await newCards
+            .Skip(randomIndex)
+            .Select(card => new ReviewCard(card.Id, card.Front, card.Back, card.CorrectAnswer, false))
+            .FirstAsync();
+    }
+
+    private async Task<bool> HasEligibleCardAsync()
+    {
+        if (currentStudent is null || assignment is null)
+        {
+            return false;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var hasDueCard = await DbContext.StudentCardProgress
+            .AnyAsync(progress => progress.UserId == currentStudent.Id &&
+                progress.DueAt <= now &&
+                progress.Card != null &&
+                progress.Card.DeckId == assignment.DeckId);
+
+        if (hasDueCard)
+        {
+            return true;
+        }
+
+        return await DbContext.Cards
+            .AnyAsync(card => card.DeckId == assignment.DeckId &&
+                !DbContext.StudentCardProgress.Any(progress =>
+                    progress.UserId == currentStudent.Id && progress.CardId == card.Id));
     }
 
     private static string NormalizeAnswer(string value) => value.Trim().ToUpperInvariant();
@@ -203,6 +321,6 @@ else if (assignment is not null)
     }
 
     private sealed record AssignmentHeader(Guid AssignmentId, string ClassroomName, string DeckTitle, Guid DeckId);
-    private sealed record ReviewCard(Guid Id, string Front, string Back, string? CorrectAnswer);
+    private sealed record ReviewCard(Guid Id, string Front, string Back, string? CorrectAnswer, bool IsDue);
     private sealed record AnswerFeedback(bool WasCorrect, string CorrectAnswer);
 }

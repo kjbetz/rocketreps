@@ -102,6 +102,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         builder.Entity<StudentCardProgress>(entity =>
         {
             entity.Property(progress => progress.UserId).HasMaxLength(450).IsRequired();
+            entity.Property(progress => progress.FsrsState).HasMaxLength(32).HasDefaultValue("Learning");
             entity.HasIndex(progress => new { progress.UserId, progress.CardId }).IsUnique();
             entity.HasIndex(progress => progress.DueAt);
             entity.HasOne(progress => progress.User)

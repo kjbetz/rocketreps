@@ -21,7 +21,9 @@
 - Current onboarding is teacher-first: teachers self-register, create classrooms, generate student logins, assign decks, and toggle classroom deck assignments active/inactive.
 - Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting is needed.
 - The app intentionally uses custom CSS and should not use Bootstrap or a UI component library unless explicitly requested.
-- The student review UX should stay age-appropriate. The first scheduling model is binary right/wrong, mapped internally to `Again`/`Good` ratings.
+- The student review UX should stay age-appropriate. The visible interaction is binary right/wrong, mapped internally to FSRS.Core `Again`/`Good` ratings.
+- Review scheduling uses `FSRS.Core` through `RocketReps.Web/ReviewScheduling`. RocketReps defaults are `0.9` desired retention, learning steps of `1m` and `10m`, a `5m` relearning step, and a `365` day maximum interval.
+- Student review card selection is dynamic: due cards first by oldest `StudentCardProgress.DueAt`, then a random new card, then an all-done state when no due or new cards are available. Keep the 20-card break prompt age-appropriate.
 - Be privacy-conscious when adding student features; students should not self-register or need email. Prefer teacher-created ASP.NET Identity users with usernames, generated/resettable passwords, and minimal student personal data.
 - Deck availability is per classroom assignment. Use `DeckAssignment.IsActive` to show or hide work for students; do not add a global active flag to `Deck`.
 - Teacher-created student accounts should use ASP.NET Core Identity, not a separate authentication system.
