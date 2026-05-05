@@ -198,15 +198,18 @@
 
     .primary-nav {
         position: absolute;
-        top: 4.5rem;
+        top: 4.15rem;
         right: 0;
         display: none;
         align-items: stretch;
-        width: min(20rem, calc(100vw - 2rem));
-        padding: 0.65rem;
-        border-radius: 24px;
-        background: var(--nav-bg);
-        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+        gap: 0.2rem;
+        width: min(17rem, calc(100vw - 2rem));
+        padding: 0.55rem;
+        border-radius: 22px;
+        background:
+            linear-gradient(135deg, var(--panel-strong), var(--panel-muted));
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(24px) saturate(1.25);
     }
 
     .nav-toggle:checked ~ .primary-nav {
@@ -215,9 +218,22 @@
 
     ::deep .nav-link {
         justify-content: flex-start;
+        min-height: 2.15rem;
+        padding: 0.45rem 0.75rem;
     }
 
     .theme-switcher {
         justify-content: flex-start;
+        padding: 0.2rem 0;
+    }
+
+    .theme-button {
+        width: 2.15rem;
+        height: 2.15rem;
+    }
+
+    .theme-icon {
+        width: 1rem;
+        height: 1rem;
     }
 }
