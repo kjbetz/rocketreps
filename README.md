@@ -12,7 +12,7 @@ The app currently includes the foundation for the first vertical slice:
 - PostgreSQL database wired through Aspire, with pgWeb available from the Aspire dashboard for local database inspection.
 - EF Core domain schema for schools, classrooms, memberships, decks, cards, assignments, student card progress, and review logs.
 - Startup seeding for `Admin`, `Teacher`, and `Student` roles plus `Riverview STEM Academy`.
-- Global stock math decks for addition, subtraction, multiplication, and division facts.
+- Global stock math decks for addition, subtraction, multiplication, and division facts, including full mixed decks and focused `0s`-`12s` practice decks where appropriate.
 - Custom Rocket Reps landing page and responsive navigation using custom CSS instead of Bootstrap.
 - Light/dark/system theme preference from a compact icon button in the top bar.
 - `/decks` page that lists seeded stock decks.
@@ -150,11 +150,15 @@ Startup seeding creates missing baseline data in every environment:
 - Roles: `Admin`, `Teacher`, `Student`
 - Stock decks:
   - `Addition Launch Pad`
+  - `Addition Launch Pad: 0s` through `Addition Launch Pad: 12s`
   - `Subtraction Orbit`
+  - `Subtraction Orbit: 0s` through `Subtraction Orbit: 12s`
   - `Multiplication Mission`
+  - `Multiplication Mission: 0s` through `Multiplication Mission: 12s`
   - `Division Docking`
+  - `Division Docking: 1s` through `Division Docking: 12s`
 
-The stock math decks generate facts programmatically instead of storing hundreds of seed rows in migrations.
+The stock math decks generate facts programmatically instead of storing hundreds of seed rows in migrations. Division-focused decks start at `1s` because division by zero is not valid.
 
 ## Design Notes
 
