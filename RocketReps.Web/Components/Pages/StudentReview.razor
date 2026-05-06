@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Student")]
 @using System.ComponentModel.DataAnnotations
+@using System.Globalization
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
@@ -69,7 +70,19 @@ else if (assignment is not null)
                         <DataAnnotationsValidator />
                         <ValidationSummary class="status-danger" />
                         <div class="field-stack">
-                            <InputText @bind-Value="answerInput.Answer" id="StudentAnswer" class="field-input review-answer" autocomplete="off" autofocus />
+                            <input @ref="answerElement"
+                                   @bind="answerInput.Answer"
+                                   @bind:event="oninput"
+                                   id="StudentAnswer"
+                                   class="field-input review-answer"
+                                   autocomplete="off"
+                                   autocapitalize="off"
+                                   autocorrect="off"
+                                   enterkeyhint="done"
+                                   inputmode="@AnswerInputMode"
+                                   pattern="@AnswerPattern"
+                                   spellcheck="false"
+                                   autofocus />
                             <label for="StudentAnswer">Your answer</label>
                         </div>
                         <button type="submit" class="button-primary button-full" disabled="@isSubmitting">
@@ -106,8 +119,16 @@ else if (assignment is not null)
     private bool isSubmitting;
     private bool isMovingNext;
     private bool showBreakPrompt;
+    private bool shouldFocusAnswer;
     private string? loadError;
     private int completedCount;
+    private ElementReference answerElement;
+
+    private string AnswerInputMode => currentCard is { CardType: CardType.MathFact }
+        ? "numeric"
+        : IsDecimalAnswer(currentCard?.CorrectAnswer ?? currentCard?.Back) ? "decimal" : "text";
+
+    private string? AnswerPattern => AnswerInputMode == "numeric" ? "[0-9]*" : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -144,6 +165,18 @@ else if (assignment is not null)
 
         currentCard = await LoadNextCardAsync();
         isLoading = false;
+        shouldFocusAnswer = currentCard is not null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!shouldFocusAnswer || currentCard is null || feedback is not null)
+        {
+            return;
+        }
+
+        shouldFocusAnswer = false;
+        await answerElement.FocusAsync(preventScroll: true);
     }
 
     private async Task SubmitAnswerAsync()
@@ -232,12 +265,14 @@ else if (assignment is not null)
 
         currentCard = await LoadNextCardAsync();
         isMovingNext = false;
+        shouldFocusAnswer = currentCard is not null;
     }
 
     private async Task ContinueReviewAsync()
     {
         showBreakPrompt = false;
         currentCard = await LoadNextCardAsync();
+        shouldFocusAnswer = currentCard is not null;
     }
 
     private async Task<ReviewCard?> LoadNextCardAsync()
@@ -260,6 +295,7 @@ else if (assignment is not null)
                 progress.Card!.Front,
                 progress.Card.Back,
                 progress.Card.CorrectAnswer,
+                progress.Card.CardType,
                 true))
             .FirstOrDefaultAsync();
 
@@ -283,7 +319,7 @@ else if (assignment is not null)
         var randomIndex = Random.Shared.Next(newCardCount);
         return await newCards
             .Skip(randomIndex)
-            .Select(card => new ReviewCard(card.Id, card.Front, card.Back, card.CorrectAnswer, false))
+            .Select(card => new ReviewCard(card.Id, card.Front, card.Back, card.CorrectAnswer, card.CardType, false))
             .FirstAsync();
     }
 
@@ -314,6 +350,9 @@ else if (assignment is not null)
 
     private static string NormalizeAnswer(string value) => value.Trim().ToUpperInvariant();
 
+    private static bool IsDecimalAnswer(string? answer) =>
+        decimal.TryParse(answer, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
+
     private sealed class AnswerInput
     {
         [Required]
@@ -321,6 +360,6 @@ else if (assignment is not null)
     }
 
     private sealed record AssignmentHeader(Guid AssignmentId, string ClassroomName, string DeckTitle, Guid DeckId);
-    private sealed record ReviewCard(Guid Id, string Front, string Back, string? CorrectAnswer, bool IsDue);
+    private sealed record ReviewCard(Guid Id, string Front, string Back, string? CorrectAnswer, CardType CardType, bool IsDue);
     private sealed record AnswerFeedback(bool WasCorrect, string CorrectAnswer);
 }
