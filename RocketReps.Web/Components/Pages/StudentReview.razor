@@ -95,6 +95,10 @@ else if (assignment is not null)
                     <div class="notice @(feedback.WasCorrect ? "notice-success" : "notice-warning")">
                         <strong>@(feedback.WasCorrect ? "Correct!" : "Not yet.")</strong>
                         <span>The answer is @feedback.CorrectAnswer.</span>
+                        @if (feedback.WasCorrect)
+                        {
+                            <span>@CorrectReviewMessage(feedback.CorrectReviewCount)</span>
+                        }
                     </div>
                     <button type="button" class="button-primary button-full" disabled="@isMovingNext" @onclick="MoveNextAsync">
                         @(isMovingNext ? "Loading..." : "Next card")
@@ -236,7 +240,8 @@ else if (assignment is not null)
 
             await DbContext.SaveChangesAsync();
             completedCount++;
-            feedback = new AnswerFeedback(wasCorrect, correctAnswer);
+            var correctReviewCount = wasCorrect ? Math.Max(0, progress.ReviewCount - progress.LapseCount) : 0;
+            feedback = new AnswerFeedback(wasCorrect, correctAnswer, correctReviewCount);
         }
         finally
         {
@@ -353,6 +358,10 @@ else if (assignment is not null)
     private static bool IsDecimalAnswer(string? answer) =>
         decimal.TryParse(answer, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
 
+    private static string CorrectReviewMessage(int correctReviewCount) => correctReviewCount == 1
+        ? "You've answered this one correctly 1 time."
+        : $"You've answered this one correctly {correctReviewCount} times.";
+
     private sealed class AnswerInput
     {
         [Required]
@@ -361,5 +370,5 @@ else if (assignment is not null)
 
     private sealed record AssignmentHeader(Guid AssignmentId, string ClassroomName, string DeckTitle, Guid DeckId);
     private sealed record ReviewCard(Guid Id, string Front, string Back, string? CorrectAnswer, CardType CardType, bool IsDue);
-    private sealed record AnswerFeedback(bool WasCorrect, string CorrectAnswer);
+    private sealed record AnswerFeedback(bool WasCorrect, string CorrectAnswer, int CorrectReviewCount);
 }

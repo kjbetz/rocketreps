@@ -20,7 +20,7 @@ The app currently includes the foundation for the first vertical slice:
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
 - `/teacher` dashboard for classroom creation, student login generation, stock deck assignment, and active/inactive deck toggles.
 - `/student` dashboard that shows active classroom deck assignments.
-- `/student/review/{assignmentId}` flow that records right/wrong reviews, keeps the answer input focused between cards, uses mobile-friendly numeric input for math facts, schedules cards with FSRS.Core, and updates student card progress.
+- `/student/review/{assignmentId}` flow that records right/wrong reviews, shows lifetime correct counts after correct answers, keeps the answer input focused between cards, uses mobile-friendly numeric input for math facts, schedules cards with FSRS.Core, and updates student card progress.
 - Postmark-backed Identity emails for teacher account confirmation and password resets.
 - Plausible analytics rendered only in the Production environment.
 
@@ -47,7 +47,7 @@ For younger students, the first review model is binary: right or wrong. Internal
 
 This keeps the experience simple while FSRS.Core handles the scheduling behind the scenes. Rocket Reps uses classroom-focused FSRS defaults: `0.9` desired retention, `1m` and `10m` learning steps, a `5m` relearning step, and a `365` day maximum interval.
 
-Student review sessions select cards dynamically instead of walking the deck in sort order. Due cards appear first, oldest due first. If no cards are due, the app chooses a random new card. If there are no due or new cards, the student sees an all-done message. After every 20 reviewed cards, the app offers a break prompt when more work is available. The answer input is automatically focused when a card is ready, and math facts request a numeric keypad on mobile devices.
+Student review sessions select cards dynamically instead of walking the deck in sort order. Due cards appear first, oldest due first. If no cards are due, the app chooses a random new card. If there are no due or new cards, the student sees an all-done message. After every 20 reviewed cards, the app offers a break prompt when more work is available. Correct-answer feedback includes the student's lifetime correct count for that card as encouragement. The answer input is automatically focused when a card is ready, and math facts request a numeric keypad on mobile devices.
 
 ## Project Structure
 
