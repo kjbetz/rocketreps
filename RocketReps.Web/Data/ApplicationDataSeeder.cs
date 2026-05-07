@@ -205,13 +205,13 @@ public static class ApplicationDataSeeder
             new MultipleChoiceSeed("What is the capital of California?", "Sacramento", ["Sacramento", "Los Angeles", "San Francisco", "San Diego"]),
             new MultipleChoiceSeed("What is California's nickname?", "The Golden State", ["The Golden State", "The Sunshine State", "The Empire State", "The Garden State"]),
             new MultipleChoiceSeed("Which ocean borders California?", "Pacific Ocean", ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Arctic Ocean"]),
-            new MultipleChoiceSeed("What is California's state flower?", "California poppy", ["California poppy", "Rose", "Sunflower", "Bluebonnet"]),
-            new MultipleChoiceSeed("What is California's state bird?", "California quail", ["California quail", "Bald eagle", "Roadrunner", "Robin"]),
-            new MultipleChoiceSeed("What is California's state animal?", "California grizzly bear", ["California grizzly bear", "Mountain lion", "Gray wolf", "Black bear"]),
+            new MultipleChoiceSeed("What is California's state flower?", "Poppy", ["Poppy", "Rose", "Sunflower", "Bluebonnet"]),
+            new MultipleChoiceSeed("What is California's state bird?", "Quail", ["Quail", "Bald eagle", "Roadrunner", "Robin"]),
+            new MultipleChoiceSeed("What is California's state animal?", "Grizzly bear", ["Grizzly bear", "Mountain lion", "Gray wolf", "Black bear"]),
             new MultipleChoiceSeed("What is California's state tree?", "Coast redwood", ["Coast redwood", "Palm tree", "Joshua tree", "Maple tree"]),
             new MultipleChoiceSeed("What is the largest city in California?", "Los Angeles", ["Los Angeles", "Sacramento", "San Jose", "Fresno"]),
             new MultipleChoiceSeed("Which famous bridge is in San Francisco?", "Golden Gate Bridge", ["Golden Gate Bridge", "Brooklyn Bridge", "London Bridge", "Sunshine Skyway Bridge"]),
-            new MultipleChoiceSeed("Which national park in California is famous for Yosemite Falls and Half Dome?", "Yosemite National Park", ["Yosemite National Park", "Yellowstone National Park", "Grand Canyon National Park", "Everglades National Park"]),
+            new MultipleChoiceSeed("Which national park in California is famous for waterfalls and Half Dome?", "Yosemite National Park", ["Yosemite National Park", "Yellowstone National Park", "Grand Canyon National Park", "Everglades National Park"]),
             new MultipleChoiceSeed("Which mountain range runs through eastern California?", "Sierra Nevada", ["Sierra Nevada", "Appalachian Mountains", "Ozark Mountains", "Cascade Range"]),
             new MultipleChoiceSeed("In what year did the California Gold Rush begin?", "1848", ["1848", "1776", "1906", "1969"]),
             new MultipleChoiceSeed("What is California's postal abbreviation?", "CA", ["CA", "CL", "CF", "CO"]),
@@ -237,14 +237,21 @@ public static class ApplicationDataSeeder
             dbContext.Decks.Add(deck);
         }
 
-        if (deck.Cards.Count > 0)
-        {
-            return;
-        }
-
         for (var index = 0; index < facts.Length; index++)
         {
             var fact = facts[index];
+            var sortOrder = index + 1;
+            var existingCard = deck.Cards.SingleOrDefault(card => card.SortOrder == sortOrder);
+            if (existingCard is not null)
+            {
+                existingCard.Front = fact.Question;
+                existingCard.Back = fact.CorrectAnswer;
+                existingCard.CorrectAnswer = fact.CorrectAnswer;
+                existingCard.ChoicesJson = JsonSerializer.Serialize(fact.Choices);
+                existingCard.CardType = CardType.MultipleChoice;
+                continue;
+            }
+
             deck.Cards.Add(new Card
             {
                 Id = Guid.NewGuid(),
@@ -253,7 +260,7 @@ public static class ApplicationDataSeeder
                 CorrectAnswer = fact.CorrectAnswer,
                 ChoicesJson = JsonSerializer.Serialize(fact.Choices),
                 CardType = CardType.MultipleChoice,
-                SortOrder = index + 1,
+                SortOrder = sortOrder,
             });
         }
     }
