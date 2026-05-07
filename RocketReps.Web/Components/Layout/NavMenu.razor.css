@@ -20,22 +20,8 @@
 .brand {
     display: inline-flex;
     align-items: center;
-    gap: 0.8rem;
     color: var(--header-text);
     text-decoration: none;
-}
-
-.brand-mark {
-    display: grid;
-    place-items: center;
-    width: 3rem;
-    height: 3rem;
-    border-radius: 16px;
-    background: var(--brand-gradient);
-    color: white;
-    font-size: 1.65rem;
-    font-weight: 1000;
-    box-shadow: 0 14px 34px rgba(91, 95, 246, 0.24);
 }
 
 .brand strong,
@@ -44,8 +30,10 @@
 }
 
 .brand strong {
-    font-size: 1.05rem;
-    letter-spacing: -0.03em;
+    font-family: Audiowide, "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 1.08rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
 }
 
 .brand small {

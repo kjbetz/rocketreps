@@ -29,6 +29,7 @@
 - When no explicit `ReturnUrl` is present, post-auth redirects should be role-aware: teachers land on `/teacher` and students land on `/student`.
 - Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting is needed.
 - The app intentionally uses custom CSS and should not use Bootstrap or a UI component library unless explicitly requested.
+- Typography should keep Audiowide limited to the main brand/app-name treatment and use Space Grotesk for body and general UI text.
 - Keep the shared top bar compact and accessible; theme switching should remain an icon-button interaction that supports light, dark, and system preferences.
 - The student review UX should stay age-appropriate. The visible interaction is binary right/wrong, mapped internally to FSRS.Core `Again`/`Good` ratings. After correct answers, feedback may show the student's lifetime correct count for that card as encouragement.
 - Keep the student review answer input focused when a typed card is ready, and preserve mobile-friendly numeric input for math fact cards. Audio-prompt cards should not auto-focus before the first `Hear word` interaction.

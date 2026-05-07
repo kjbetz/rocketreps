@@ -189,6 +189,7 @@ When `Demo:Enabled` is true, startup also seeds `demo.teacher`, `demo.student01`
 
 - Do not reintroduce Bootstrap or a UI component library unless explicitly requested.
 - Keep the visual language custom, modern, and kid-friendly with a space/rocket theme.
+- Use Audiowide sparingly for the main brand/app-name treatment only; use Space Grotesk as the app-wide body/UI font.
 - Keep the top bar compact and accessible; theme switching should remain an icon-button interaction that supports light, dark, and system preferences.
 - Preserve privacy-minded defaults because the target users are elementary and middle school students.
 - Prefer small vertical slices over broad platform features.
