@@ -498,6 +498,60 @@ textarea {
     color: var(--accent-strong);
 }
 
+.demo-login-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    max-width: 920px;
+    padding-bottom: 1rem;
+}
+
+.demo-login-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.demo-login-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 0.4rem;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+
+.demo-login-card h2 {
+    margin: 0.8rem 0 0.6rem;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    letter-spacing: -0.05em;
+}
+
+.demo-login-card p {
+    min-height: 4.8rem;
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.demo-card-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 18px;
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-size: 1.3rem;
+    font-weight: 900;
+}
+
+.student-demo-card .demo-card-icon {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+}
+
+.demo-note {
+    max-width: 920px;
+}
+
 .loading-card {
     color: var(--muted);
     font-weight: 800;
@@ -827,6 +881,122 @@ label:not([class]) {
     text-align: center;
 }
 
+.audio-prompt-card {
+    display: grid;
+    gap: 0.9rem;
+    justify-items: center;
+    margin-bottom: 1.5rem;
+    padding: clamp(1rem, 4vw, 2rem);
+    border: 1px dashed var(--line);
+    border-radius: 24px;
+    background: var(--panel-muted);
+    text-align: center;
+}
+
+.audio-prompt-card p {
+    margin-bottom: 0;
+}
+
+.audio-settings {
+    display: grid;
+    gap: 0.65rem;
+    justify-items: center;
+    width: min(100%, 24rem);
+}
+
+.audio-settings-toggle {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.1rem 0.55rem;
+    align-items: center;
+    max-width: 100%;
+    min-height: 2.75rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--text);
+    background: var(--field-bg);
+    cursor: pointer;
+    text-align: left;
+}
+
+.audio-settings-toggle svg {
+    grid-row: span 2;
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: currentColor;
+}
+
+.audio-settings-toggle span {
+    font-size: 0.88rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.audio-settings-toggle small {
+    max-width: 14rem;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-weight: 800;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.audio-settings-toggle:focus-visible {
+    outline: 3px solid var(--primary-soft);
+    outline-offset: 3px;
+}
+
+.audio-settings-panel {
+    display: grid;
+    gap: 0.35rem;
+    width: 100%;
+    padding: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel);
+    text-align: left;
+}
+
+.audio-settings-panel label {
+    margin-bottom: 0;
+    font-size: 0.82rem;
+}
+
+.audio-voice-select {
+    min-height: 2.75rem;
+    font-size: 0.95rem;
+}
+
+.audio-prompt-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: min(100%, 18rem);
+    min-height: 6rem;
+    padding: 1rem 1.5rem;
+    border: 0;
+    border-radius: 28px;
+    color: white;
+    background: linear-gradient(135deg, var(--primary), var(--accent-strong));
+    box-shadow: 0 18px 42px rgba(34, 211, 238, 0.2);
+    font-size: clamp(1.35rem, 5vw, 2rem);
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.audio-prompt-button:focus-visible {
+    outline: 4px solid var(--primary-soft);
+    outline-offset: 4px;
+}
+
+.audio-prompt-button:disabled {
+    cursor: wait;
+    opacity: 0.76;
+}
+
 .review-answer {
     min-height: 4rem;
     font-size: 1.4rem;
@@ -893,6 +1063,7 @@ label:not([class]) {
     .hero-section,
     .feature-grid,
     .deck-grid,
+    .demo-login-grid,
     .management-grid,
     .credential-grid {
         grid-template-columns: 1fr;

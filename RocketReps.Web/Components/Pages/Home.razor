@@ -1,5 +1,9 @@
 ﻿@page "/"
 
+@using Microsoft.Extensions.Options
+@using RocketReps.Web.Data
+@inject IOptions<DemoOptions> DemoOptions
+
 <PageTitle>Rocket Reps</PageTitle>
 
 <section class="hero-section">
@@ -10,6 +14,10 @@
             Rocket Reps helps elementary and middle school students practice a little each day using spaced repetition, starting with math fact missions teachers can assign in minutes.
         </p>
         <div class="hero-actions">
+            @if (DemoOptions.Value.Enabled)
+            {
+                <a class="button-primary" href="demo">Open Demo</a>
+            }
             <a class="button-primary" href="Account/Register">Teacher sign up</a>
             <a class="button-secondary" href="Account/Login">Log in</a>
         </div>

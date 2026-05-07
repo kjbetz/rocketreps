@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace RocketReps.Web.Data;
 
@@ -32,8 +33,15 @@ public static class ApplicationDataSeeder
         await SeedMathDeckAsync(dbContext, "Multiplication Mission", "Practice multiplication facts from 0 through 12.", BuildMultiplicationCards());
         await SeedMathDeckAsync(dbContext, "Division Docking", "Practice division facts connected to the 1 through 12 times tables.", BuildDivisionCards());
         await SeedFocusedMathDecksAsync(dbContext);
+        await SeedSpellingDeckAsync(dbContext);
 
         await dbContext.SaveChangesAsync();
+
+        var demoOptions = services.GetRequiredService<IOptions<DemoOptions>>().Value;
+        if (demoOptions.Enabled)
+        {
+            await DemoDataSeeder.SeedAsync(services);
+        }
     }
 
     public static async Task SeedIdentityRolesAsync(IServiceProvider services)
@@ -122,6 +130,69 @@ public static class ApplicationDataSeeder
                 $"Division Docking: {divisor}s",
                 $"Practice division facts by {divisor}, with answers from 0 through {LargestMathFactNumber}.",
                 BuildDivisionCards(divisor));
+        }
+    }
+
+    private static async Task SeedSpellingDeckAsync(ApplicationDbContext dbContext)
+    {
+        var words = new[]
+        {
+            "rocket",
+            "planet",
+            "launch",
+            "orbit",
+            "comet",
+            "galaxy",
+            "student",
+            "teacher",
+            "number",
+            "science",
+            "problem",
+            "answer",
+            "practice",
+            "mission",
+            "energy",
+            "future",
+            "explore",
+            "engine",
+            "window",
+            "bright",
+        };
+
+        var deck = await dbContext.Decks.Include(deck => deck.Cards).SingleOrDefaultAsync(deck => deck.IsGlobalStock && deck.Title == "Spelling Lift-Off");
+        if (deck is null)
+        {
+            deck = new Deck
+            {
+                Id = Guid.NewGuid(),
+                Title = "Spelling Lift-Off",
+                Description = "Hear each word, then type the spelling from memory.",
+                Subject = "Spelling",
+                GradeBand = "Elementary",
+                IsGlobalStock = true,
+                IsPublished = true,
+            };
+
+            dbContext.Decks.Add(deck);
+        }
+
+        if (deck.Cards.Count > 0)
+        {
+            return;
+        }
+
+        for (var index = 0; index < words.Length; index++)
+        {
+            var word = words[index];
+            deck.Cards.Add(new Card
+            {
+                Id = Guid.NewGuid(),
+                Front = "Listen and spell the word.",
+                Back = word,
+                CorrectAnswer = word,
+                CardType = CardType.AudioPrompt,
+                SortOrder = index + 1,
+            });
         }
     }
 

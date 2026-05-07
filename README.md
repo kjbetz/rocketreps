@@ -13,6 +13,7 @@ The app currently includes the foundation for the first vertical slice:
 - EF Core domain schema for schools, classrooms, memberships, decks, cards, assignments, student card progress, and review logs.
 - Startup seeding for `Admin`, `Teacher`, and `Student` roles plus `Riverview STEM Academy`.
 - Global stock math decks for addition, subtraction, multiplication, and division facts, including full mixed decks and focused `0s`-`12s` practice decks where appropriate.
+- Global stock `Spelling Lift-Off` deck with audio-prompt spelling practice.
 - Custom Rocket Reps landing page and responsive navigation using custom CSS instead of Bootstrap.
 - Light/dark/system theme preference from a compact icon button in the top bar.
 - `/decks` page that lists seeded stock decks.
@@ -21,6 +22,7 @@ The app currently includes the foundation for the first vertical slice:
 - `/teacher` dashboard for classroom creation, student login generation, stock deck assignment, and active/inactive deck toggles.
 - `/student` dashboard that shows active classroom deck assignments.
 - `/student/review/{assignmentId}` flow that records right/wrong reviews, shows lifetime correct counts after correct answers, keeps the answer input focused between cards, uses mobile-friendly numeric input for math facts, schedules cards with FSRS.Core, and updates student card progress.
+- Config-gated `/demo` launcher for open-house demos with seeded teacher, student, classroom, and deck assignment data.
 - Postmark-backed Identity emails for teacher account confirmation and password resets.
 - Plausible analytics rendered only in the Production environment.
 
@@ -92,6 +94,8 @@ dotnet user-secrets set "Postmark:FromEmail" "no-reply@example.com" --project Ro
 dotnet user-secrets set "Postmark:MessageStream" "outbound" --project RocketReps.Web/RocketReps.Web.csproj
 ```
 
+Demo mode is controlled by `Demo:Enabled`. When enabled, `/demo` shows one-click teacher and student demo launch buttons and startup seeds the demo accounts/classes if missing. The default `appsettings.json` currently enables this for temporary open-house use; set `Demo__Enabled=false` in the environment after the event to disable the launcher and demo login endpoints.
+
 After changing compiled code while Aspire is running, rebuild the web resource instead of restarting the full AppHost when possible:
 
 ```bash
@@ -109,6 +113,7 @@ GitHub Actions handles container builds, EF migration bundles, and VPS deploys:
 - Deploy jobs run on the self-hosted runner labeled `self-hosted`, `linux`, and `rocketreps-vps`.
 - EF migrations are applied from a generated linux-x64 bundle before `podman auto-update` runs.
 - App startup seeds identity roles, `Riverview STEM Academy`, and stock math decks after the deployment-applied schema is available.
+- Demo mode can be disabled in deployed env files with `Demo__Enabled=false` after temporary events.
 - Plausible analytics is gated by `HostEnvironment.IsProduction()` and is not emitted in local development or staging.
 
 Set these GitHub Actions variables for each environment:
@@ -124,6 +129,7 @@ DataProtection__KeysDirectory=/var/rocketreps/data-protection-keys
 Postmark__ServerToken=...
 Postmark__FromEmail=no-reply@example.com
 Postmark__MessageStream=outbound
+Demo__Enabled=false
 ```
 
 Mount `DataProtection__KeysDirectory` to persistent VPS storage for the web container. This preserves antiforgery and auth cookies across deploys. `Postmark__FromEmail` must be a verified sender signature or domain address in Postmark.
@@ -157,8 +163,11 @@ Startup seeding creates missing baseline data in every environment:
   - `Multiplication Mission: 0s` through `Multiplication Mission: 12s`
   - `Division Docking`
   - `Division Docking: 1s` through `Division Docking: 12s`
+  - `Spelling Lift-Off`
 
-The stock math decks generate facts programmatically instead of storing hundreds of seed rows in migrations. Division-focused decks start at `1s` because division by zero is not valid.
+The stock math decks generate facts programmatically instead of storing hundreds of seed rows in migrations. Division-focused decks start at `1s` because division by zero is not valid. The spelling deck seeds audio-prompt cards for browser speech synthesis during student review.
+
+When `Demo:Enabled` is true, startup also seeds `demo.teacher`, `demo.student01` through `demo.student30`, two demo classrooms, and active assignments for math and spelling decks. The `/demo` page signs users into those accounts without showing passwords.
 
 ## Design Notes
 

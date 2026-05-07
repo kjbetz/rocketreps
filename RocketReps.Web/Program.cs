@@ -8,6 +8,7 @@ using RocketReps.Web.Components;
 using RocketReps.Web.Components.Account;
 using RocketReps.Web.Data;
 using RocketReps.Web.ReviewScheduling;
+using System.Security.Cryptography;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +27,9 @@ builder.Services.AddOptions<RocketRepsDataProtectionOptions>()
 
 builder.Services.AddOptions<PostmarkEmailOptions>()
     .Bind(builder.Configuration.GetSection(PostmarkEmailOptions.SectionName));
+
+builder.Services.AddOptions<DemoOptions>()
+    .Bind(builder.Configuration.GetSection(DemoOptions.SectionName));
 
 var dataProtectionOptions = builder.Configuration
     .GetSection(RocketRepsDataProtectionOptions.SectionName)
@@ -143,5 +147,52 @@ app.MapRazorComponents<App>()
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
+
+app.MapPost("/demo/teacher", async (
+    IOptions<DemoOptions> demoOptions,
+    UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager) =>
+{
+    if (!demoOptions.Value.Enabled)
+    {
+        return Results.NotFound();
+    }
+
+    var teacher = await userManager.FindByNameAsync(DemoDataSeeder.TeacherUserName);
+    if (teacher is null)
+    {
+        return Results.Redirect("/demo?setup=missing");
+    }
+
+    await signInManager.SignOutAsync();
+    await signInManager.SignInAsync(teacher, isPersistent: false);
+    return Results.Redirect("/teacher");
+});
+
+app.MapPost("/demo/student", async (
+    IOptions<DemoOptions> demoOptions,
+    ApplicationDbContext dbContext,
+    SignInManager<ApplicationUser> signInManager) =>
+{
+    if (!demoOptions.Value.Enabled)
+    {
+        return Results.NotFound();
+    }
+
+    var students = await dbContext.Users
+        .Where(user => user.UserName != null && user.UserName.StartsWith(DemoDataSeeder.StudentUserNamePrefix))
+        .OrderBy(user => user.UserName)
+        .ToListAsync();
+
+    if (students.Count == 0)
+    {
+        return Results.Redirect("/demo?setup=missing");
+    }
+
+    var student = students[RandomNumberGenerator.GetInt32(students.Count)];
+    await signInManager.SignOutAsync();
+    await signInManager.SignInAsync(student, isPersistent: false);
+    return Results.Redirect("/student");
+});
 
 app.Run();

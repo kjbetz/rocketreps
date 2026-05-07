@@ -1,0 +1,48 @@
+@page "/demo"
+
+@using Microsoft.Extensions.Options
+@using RocketReps.Web.Data
+@inject IOptions<DemoOptions> DemoOptions
+
+<PageTitle>Rocket Reps Demo</PageTitle>
+
+@if (!DemoOptions.Value.Enabled)
+{
+    <section class="page-hero compact">
+        <p class="eyebrow">Demo mode</p>
+        <h1>Demo mode is off.</h1>
+        <p>Set <code>Demo:Enabled</code> to <code>true</code> to turn on the open-house demo launcher.</p>
+    </section>
+}
+else
+{
+    <section class="page-hero compact demo-hero">
+        <p class="eyebrow">Open house demo</p>
+        <h1>Try Rocket Reps in one click.</h1>
+        <p>Choose the teacher dashboard to set up classroom missions, or jump straight into student practice with one of the demo student accounts.</p>
+    </section>
+
+    <section class="demo-login-grid" aria-label="Demo login choices">
+        <article class="content-card demo-login-card teacher-demo-card">
+            <span class="demo-card-icon" aria-hidden="true">T</span>
+            <h2>Teacher Demo</h2>
+            <p>Explore the teacher launchpad with seeded classrooms, students, and active stock deck assignments.</p>
+            <form method="post" action="demo/teacher">
+                <button type="submit" class="button-primary button-full">Launch Teacher Demo</button>
+            </form>
+        </article>
+
+        <article class="content-card demo-login-card student-demo-card">
+            <span class="demo-card-icon" aria-hidden="true">S</span>
+            <h2>Student Demo</h2>
+            <p>Practice as a random demo student from a shared pool built for open-house traffic.</p>
+            <form method="post" action="demo/student">
+                <button type="submit" class="button-secondary button-full">Launch Student Demo</button>
+            </form>
+        </article>
+    </section>
+
+    <section class="notice notice-info demo-note">
+        Demo accounts are shared. Use <code>Demo:Enabled=false</code> after the event to disable these login buttons and endpoints.
+    </section>
+}
