@@ -6,6 +6,7 @@
 
 @inject ApplicationDbContext DbContext
 @inject NavigationManager NavigationManager
+@inject IRocketRepsAnalytics Analytics
 
 <PageTitle>Early Access - Rocket Reps</PageTitle>
 
@@ -134,7 +135,7 @@
 
     private async Task SubmitAsync()
     {
-        DbContext.EarlyAccessSignups.Add(new EarlyAccessSignup
+        var signup = new EarlyAccessSignup
         {
             Id = Guid.NewGuid(),
             Name = Input.Name.Trim(),
@@ -144,9 +145,19 @@
             PlanInterest = string.IsNullOrWhiteSpace(Input.PlanInterest) ? null : Input.PlanInterest.Trim(),
             Message = string.IsNullOrWhiteSpace(Input.Message) ? null : Input.Message.Trim(),
             Source = "Open House",
-        });
+        };
+
+        DbContext.EarlyAccessSignups.Add(signup);
 
         await DbContext.SaveChangesAsync();
+        Analytics.Capture($"early-access:{signup.Id}", "early_access_requested", new()
+        {
+            ["role"] = signup.Role,
+            ["plan_interest"] = signup.PlanInterest,
+            ["has_school_or_organization"] = !string.IsNullOrWhiteSpace(signup.SchoolOrOrganization),
+            ["has_message"] = !string.IsNullOrWhiteSpace(signup.Message),
+            ["source"] = signup.Source,
+        });
         submitted = true;
         Input = new();
     }

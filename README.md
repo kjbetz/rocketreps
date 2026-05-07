@@ -30,7 +30,7 @@ The app currently includes the foundation for the first vertical slice:
 - `/student/review/{assignmentId}` flow that records right/wrong reviews, shows lifetime correct counts after correct answers, keeps the answer input focused between typed cards, uses mobile-friendly numeric input for math facts, supports shuffled multiple-choice cards, supports audio-prompt spelling cards with browser speech synthesis and a local voice picker, schedules cards with FSRS.Core, and updates student card progress.
 - Config-gated `/demo` launcher for open-house demos with seeded teacher, student, classroom, and deck assignment data.
 - Postmark-backed Identity emails for teacher account confirmation and password resets.
-- Plausible analytics rendered only in the Production environment.
+- Plausible analytics rendered only in the Production environment, plus optional PostHog product analytics when `PostHog:ProjectToken` is configured. PostHog server-side workflow events are emitted through the .NET SDK, and the browser snippet is limited to `Staging` and `Production`.
 
 ## Product Direction
 
@@ -73,6 +73,7 @@ The spelling voice picker is intentionally client-side. `RocketReps.Web/wwwroot/
 - `RocketReps.Web/Components`: Blazor routes, layout, account pages, and app UI.
 - `RocketReps.Web/Dockerfile`: production container image build for the web app.
 - `RocketReps.ServiceDefaults`: Aspire service defaults for telemetry, resilience, discovery, and health endpoints.
+- `docs/posthog_events.md`: PostHog event catalog and analytics privacy notes.
 - `scripts/ci/apply-ef-bundle.sh`: VPS-side EF migration bundle runner used by deploy workflows.
 - `rocketreps.slnx`: .NET solution file for the repository.
 
@@ -110,6 +111,13 @@ dotnet user-secrets set "Postmark:MessageStream" "outbound" --project RocketReps
 
 Demo mode is controlled by `Demo:Enabled`. When enabled, `/demo` shows one-click teacher and student demo launch buttons and startup seeds the demo accounts/classes if missing. The default `appsettings.json` currently enables this for temporary open-house use; set `Demo__Enabled=false` in the environment after the event to disable the launcher and demo login endpoints.
 
+PostHog product analytics is optional and disabled unless a project token is configured. Server-side instrumentation avoids names, emails, card prompts, and answers; it captures workflow events with internal IDs, roles, counts, card types, and success/failure states. The PostHog browser snippet is rendered only in `Staging` and `Production` when `PostHog:ProjectToken` is configured.
+
+```bash
+dotnet user-secrets set "PostHog:ProjectToken" "phc_..." --project RocketReps.Web/RocketReps.Web.csproj
+dotnet user-secrets set "PostHog:HostUrl" "https://us.i.posthog.com" --project RocketReps.Web/RocketReps.Web.csproj
+```
+
 After changing compiled code while Aspire is running, rebuild the web resource instead of restarting the full AppHost when possible:
 
 ```bash
@@ -129,6 +137,7 @@ GitHub Actions handles container builds, EF migration bundles, and VPS deploys:
 - App startup seeds identity roles, `Riverview STEM Academy`, and stock math decks after the deployment-applied schema is available.
 - Demo mode can be disabled in deployed env files with `Demo__Enabled=false` after temporary events.
 - Plausible analytics is gated by `HostEnvironment.IsProduction()` and is not emitted in local development or staging.
+- PostHog analytics is emitted only when `PostHog__ProjectToken` is present in the web app environment. Server-side events are available anywhere the token is configured; the browser snippet is additionally gated to `Staging` and `Production`.
 
 Set these GitHub Actions variables for each environment:
 
@@ -143,6 +152,8 @@ DataProtection__KeysDirectory=/var/rocketreps/data-protection-keys
 Postmark__ServerToken=...
 Postmark__FromEmail=no-reply@example.com
 Postmark__MessageStream=outbound
+PostHog__ProjectToken=phc_...
+PostHog__HostUrl=https://us.i.posthog.com
 Demo__Enabled=false
 ```
 

@@ -12,6 +12,7 @@
 @inject ApplicationDbContext DbContext
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<ApplicationUser> UserManager
+@inject IRocketRepsAnalytics Analytics
 
 <PageTitle>Teacher Dashboard</PageTitle>
 
@@ -116,6 +117,14 @@ else
         isLoading = false;
     }
 
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            TrackDashboardViewed();
+        }
+    }
+
     private async Task CreateClassroomAsync()
     {
         if (currentTeacher is null)
@@ -146,6 +155,11 @@ else
 
         DbContext.Classrooms.Add(classroom);
         await DbContext.SaveChangesAsync();
+        Analytics.Capture(currentTeacher.Id, "classroom_created", new()
+        {
+            ["classroom_id"] = classroom.Id,
+            ["school_id"] = schoolId,
+        });
         classroomInput.Name = string.Empty;
         SetStatus($"Created {classroom.Name}. Open it to add students and decks.");
         await LoadDashboardAsync();
@@ -234,6 +248,24 @@ else
     {
         statusMessage = message;
         statusClass = cssClass;
+    }
+
+    private void TrackDashboardViewed()
+    {
+        if (currentTeacher is null)
+        {
+            return;
+        }
+
+        Analytics.Capture(currentTeacher.Id, "teacher_dashboard_viewed", new()
+        {
+            ["classroom_count"] = classrooms.Count,
+            ["student_count"] = classrooms.Sum(classroom => classroom.StudentCount),
+            ["active_deck_count"] = classrooms.Sum(classroom => classroom.ActiveDeckCount),
+            ["assigned_deck_count"] = classrooms.Sum(classroom => classroom.TotalDeckCount),
+            ["stock_deck_count"] = deckLibrary.StockDeckCount,
+            ["published_teacher_deck_count"] = deckLibrary.TeacherDeckCount,
+        });
     }
 
     private sealed class ClassroomInput

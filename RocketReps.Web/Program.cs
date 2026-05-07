@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using FSRS.Core.Configurations;
+using PostHog;
+using RocketReps.Web.Analytics;
 using RocketReps.Web.Components;
 using RocketReps.Web.Components.Account;
 using RocketReps.Web.Data;
@@ -30,6 +32,13 @@ builder.Services.AddOptions<PostmarkEmailOptions>()
 
 builder.Services.AddOptions<DemoOptions>()
     .Bind(builder.Configuration.GetSection(DemoOptions.SectionName));
+
+if (!string.IsNullOrWhiteSpace(builder.Configuration["PostHog:ProjectToken"]))
+{
+    builder.AddPostHog();
+}
+
+builder.Services.AddScoped<IRocketRepsAnalytics, RocketRepsAnalytics>();
 
 var dataProtectionOptions = builder.Configuration
     .GetSection(RocketRepsDataProtectionOptions.SectionName)
@@ -151,7 +160,8 @@ app.MapAdditionalIdentityEndpoints();
 app.MapPost("/demo/teacher", async (
     IOptions<DemoOptions> demoOptions,
     UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager) =>
+    SignInManager<ApplicationUser> signInManager,
+    IRocketRepsAnalytics analytics) =>
 {
     if (!demoOptions.Value.Enabled)
     {
@@ -166,13 +176,18 @@ app.MapPost("/demo/teacher", async (
 
     await signInManager.SignOutAsync();
     await signInManager.SignInAsync(teacher, isPersistent: false);
+    analytics.Capture("demo:teacher", "demo_launched", new()
+    {
+        ["role"] = "Teacher",
+    });
     return Results.Redirect("/teacher");
 });
 
 app.MapPost("/demo/student", async (
     IOptions<DemoOptions> demoOptions,
     ApplicationDbContext dbContext,
-    SignInManager<ApplicationUser> signInManager) =>
+    SignInManager<ApplicationUser> signInManager,
+    IRocketRepsAnalytics analytics) =>
 {
     if (!demoOptions.Value.Enabled)
     {
@@ -192,6 +207,11 @@ app.MapPost("/demo/student", async (
     var student = students[RandomNumberGenerator.GetInt32(students.Count)];
     await signInManager.SignOutAsync();
     await signInManager.SignInAsync(student, isPersistent: false);
+    analytics.Capture("demo:student", "demo_launched", new()
+    {
+        ["role"] = "Student",
+        ["student_pool_size"] = students.Count,
+    });
     return Results.Redirect("/student");
 });
 

@@ -11,6 +11,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<ApplicationUser> UserManager
 @inject NavigationManager Navigation
+@inject IRocketRepsAnalytics Analytics
 
 <PageTitle>Teacher Decks</PageTitle>
 
@@ -159,6 +160,13 @@ else
 
         DbContext.Decks.Add(deck);
         await DbContext.SaveChangesAsync();
+        Analytics.Capture(currentTeacher.Id, "teacher_deck_created", new()
+        {
+            ["deck_id"] = deck.Id,
+            ["subject"] = deck.Subject,
+            ["grade_band"] = deck.GradeBand,
+            ["is_published"] = deck.IsPublished,
+        });
         Navigation.NavigateTo($"teacher/decks/{deck.Id}");
     }
 
@@ -198,6 +206,12 @@ else
         }
 
         SetStatus(deck.IsPublished ? "Deck published and ready to assign." : "Deck unpublished. Existing assignments remain, but it will not appear for new assignments.");
+        Analytics.Capture(currentTeacher.Id, "teacher_deck_publish_toggled", new()
+        {
+            ["deck_id"] = deck.Id,
+            ["is_published"] = deck.IsPublished,
+            ["card_count"] = deck.Cards.Count,
+        });
         await LoadDecksAsync();
     }
 

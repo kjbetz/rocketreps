@@ -17,6 +17,7 @@
 @inject FsrsReviewScheduler ReviewScheduler
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
+@inject IRocketRepsAnalytics Analytics
 @implements IAsyncDisposable
 
 <PageTitle>Review Mission</PageTitle>
@@ -235,6 +236,7 @@ else if (assignment is not null)
     private bool shouldFocusAnswer;
     private bool hasHeardCurrentAudioPrompt;
     private bool shouldPlayAudioPromptAfterRender;
+    private bool hasTrackedReviewComplete;
     private string? loadError;
     private string? audioPromptError;
     private string selectedVoiceUri = string.Empty;
@@ -294,6 +296,12 @@ else if (assignment is not null)
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            TrackReviewSessionStarted();
+            TrackReviewCompleteIfNeeded();
+        }
+
         if (shouldFocusAnswer && currentCard is not null && feedback is null)
         {
             shouldFocusAnswer = false;
@@ -373,6 +381,19 @@ else if (assignment is not null)
 
             await DbContext.SaveChangesAsync();
             completedCount++;
+            Analytics.Capture(currentStudent.Id, "review_answer_checked", new()
+            {
+                ["assignment_id"] = assignment.AssignmentId,
+                ["deck_id"] = assignment.DeckId,
+                ["card_id"] = currentCard.Id,
+                ["card_type"] = currentCard.CardType.ToString(),
+                ["is_due_card"] = currentCard.IsDue,
+                ["was_correct"] = wasCorrect,
+                ["rating"] = rating.ToString(),
+                ["completed_count"] = completedCount,
+                ["scheduled_interval_minutes"] = schedule.ScheduledInterval.TotalMinutes,
+                ["next_fsrs_state"] = schedule.FsrsState,
+            });
             var correctReviewCount = wasCorrect ? Math.Max(0, progress.ReviewCount - progress.LapseCount) : 0;
             feedback = new AnswerFeedback(wasCorrect, correctAnswer, correctReviewCount);
         }
@@ -398,6 +419,17 @@ else if (assignment is not null)
 
     private void EndSession()
     {
+        if (currentStudent is not null && assignment is not null)
+        {
+            Analytics.Capture(currentStudent.Id, "review_session_ended", new()
+            {
+                ["assignment_id"] = assignment.AssignmentId,
+                ["deck_id"] = assignment.DeckId,
+                ["completed_count"] = completedCount,
+                ["had_pending_card"] = currentCard is not null && feedback is null,
+            });
+        }
+
         Navigation.NavigateTo("student");
     }
 
@@ -417,11 +449,18 @@ else if (assignment is not null)
         {
             showBreakPrompt = true;
             SetCurrentCard(null);
+            Analytics.Capture(currentStudent?.Id, "review_break_prompted", new()
+            {
+                ["assignment_id"] = assignment?.AssignmentId,
+                ["deck_id"] = assignment?.DeckId,
+                ["completed_count"] = completedCount,
+            });
             isMovingNext = false;
             return;
         }
 
         SetCurrentCard(await LoadNextCardAsync());
+        TrackReviewCompleteIfNeeded();
         shouldPlayAudioPromptAfterRender = currentCard?.CardType == CardType.AudioPrompt;
         isMovingNext = false;
     }
@@ -523,8 +562,47 @@ else if (assignment is not null)
     private async Task ContinueReviewAsync()
     {
         showBreakPrompt = false;
+        Analytics.Capture(currentStudent?.Id, "review_break_continued", new()
+        {
+            ["assignment_id"] = assignment?.AssignmentId,
+            ["deck_id"] = assignment?.DeckId,
+            ["completed_count"] = completedCount,
+        });
         SetCurrentCard(await LoadNextCardAsync());
         shouldPlayAudioPromptAfterRender = currentCard?.CardType == CardType.AudioPrompt;
+    }
+
+    private void TrackReviewSessionStarted()
+    {
+        if (currentStudent is null || assignment is null)
+        {
+            return;
+        }
+
+        Analytics.Capture(currentStudent.Id, "review_session_started", new()
+        {
+            ["assignment_id"] = assignment.AssignmentId,
+            ["deck_id"] = assignment.DeckId,
+            ["has_initial_card"] = currentCard is not null,
+            ["initial_card_type"] = currentCard?.CardType.ToString(),
+            ["initial_card_is_due"] = currentCard?.IsDue,
+        });
+    }
+
+    private void TrackReviewCompleteIfNeeded()
+    {
+        if (hasTrackedReviewComplete || currentStudent is null || assignment is null || currentCard is not null)
+        {
+            return;
+        }
+
+        hasTrackedReviewComplete = true;
+        Analytics.Capture(currentStudent.Id, "review_session_completed", new()
+        {
+            ["assignment_id"] = assignment.AssignmentId,
+            ["deck_id"] = assignment.DeckId,
+            ["completed_count"] = completedCount,
+        });
     }
 
     private void SetCurrentCard(ReviewCard? card)

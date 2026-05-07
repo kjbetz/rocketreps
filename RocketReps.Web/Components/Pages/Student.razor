@@ -10,6 +10,7 @@
 @inject ApplicationDbContext DbContext
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<ApplicationUser> UserManager
+@inject IRocketRepsAnalytics Analytics
 
 <PageTitle>Student Mission Board</PageTitle>
 
@@ -253,6 +254,14 @@ else
         isLoading = false;
     }
 
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            TrackDashboardViewed();
+        }
+    }
+
     private RenderFragment DeckCard(StudentAssignment assignment) => @<article class="deck-card @assignment.CardStateClass">
         <div class="deck-card-header">
             <span>@assignment.Subject</span>
@@ -278,6 +287,24 @@ else
 
     private static string CardCountText(int cardCount) => cardCount == 1 ? "1 card" : $"{cardCount} cards";
 
+    private void TrackDashboardViewed()
+    {
+        if (currentStudentId is null)
+        {
+            return;
+        }
+
+        Analytics.Capture(currentStudentId, "student_dashboard_viewed", new()
+        {
+            ["active_assignment_count"] = assignments.Count,
+            ["due_assignment_count"] = dueAssignments.Count,
+            ["ready_assignment_count"] = readyAssignments.Count,
+            ["caught_up_assignment_count"] = caughtUpAssignments.Count,
+            ["due_card_count"] = assignments.Sum(assignment => assignment.DueCardCount),
+            ["new_card_count"] = assignments.Sum(assignment => assignment.NewCardCount),
+        });
+    }
+
     private async Task ShowDeckDetailsAsync(StudentAssignment assignment)
     {
         if (currentStudentId is null)
@@ -292,6 +319,16 @@ else
         try
         {
             selectedDeckDetails = await LoadDeckDetailsAsync(assignment, currentStudentId);
+            Analytics.Capture(currentStudentId, "student_mission_details_opened", new()
+            {
+                ["assignment_id"] = assignment.AssignmentId,
+                ["deck_id"] = assignment.DeckId,
+                ["subject"] = assignment.Subject,
+                ["grade_band"] = assignment.GradeBand,
+                ["card_count"] = assignment.CardCount,
+                ["due_card_count"] = assignment.DueCardCount,
+                ["new_card_count"] = assignment.NewCardCount,
+            });
         }
         finally
         {

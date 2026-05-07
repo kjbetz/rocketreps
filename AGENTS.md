@@ -7,7 +7,9 @@
 - The local Aspire topology includes PostgreSQL (`postgres`) with pgWeb enabled and the `rocketreps` database resource wired into `RocketReps.Web`.
 - The app connection string key is `rocketreps`; deployed web env files should set `ConnectionStrings__rocketreps`.
 - Identity email is sent through Postmark. Deployed web env files should set `Postmark__ServerToken`, `Postmark__FromEmail`, and optionally `Postmark__MessageStream`.
-- Plausible analytics is rendered from `RocketReps.Web/Components/App.razor` only when `HostEnvironment.IsProduction()` is true; do not enable analytics for non-production environments unless explicitly requested.
+- Plausible analytics is rendered from `RocketReps.Web/Components/App.razor` only when `HostEnvironment.IsProduction()` is true; do not enable Plausible for non-production environments unless explicitly requested.
+- PostHog analytics is optional and config-gated by `PostHog:ProjectToken`. Server-side events use `RocketReps.Web/Analytics/IRocketRepsAnalytics`; the browser snippet in `RocketReps.Web/Components/App.razor` renders only for `Staging` and `Production`. Do not hardcode PostHog project tokens; deployed web env files should set `PostHog__ProjectToken` and optionally `PostHog__HostUrl`.
+- PostHog event documentation lives in `docs/posthog_events.md`. Keep analytics privacy-conscious for students: do not send names, emails, card prompts, spelling words, typed answers, or generated passwords.
 - GitHub Actions deploys staging on every push to `main` and promotes production only from `v*` tags.
 - The deployment runner is self-hosted on the VPS with labels `[self-hosted, linux, rocketreps-vps]`.
 - Staging publishes `ghcr.io/kjbetz/rocketreps-web:staging` and `:sha-<commit>`; production promotes the tagged commit's `:sha-<commit>` image to `:prod` and `:<version-tag>`.

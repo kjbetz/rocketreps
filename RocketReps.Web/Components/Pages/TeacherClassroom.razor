@@ -14,6 +14,7 @@
 @inject ApplicationDbContext DbContext
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<ApplicationUser> UserManager
+@inject IRocketRepsAnalytics Analytics
 
 <PageTitle>@(classroom?.Name ?? "Classroom")</PageTitle>
 
@@ -287,6 +288,14 @@ else
         isLoading = false;
     }
 
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            TrackClassroomViewed();
+        }
+    }
+
     private async Task CreateStudentAsync()
     {
         if (currentTeacher is null)
@@ -341,6 +350,13 @@ else
         });
 
         await DbContext.SaveChangesAsync();
+        Analytics.Capture(currentTeacher.Id, "student_login_created", new()
+        {
+            ["classroom_id"] = classroomEntity.Id,
+            ["student_id"] = student.Id,
+            ["school_id"] = classroomEntity.SchoolId,
+            ["classroom_student_count"] = students.Count + 1,
+        });
         studentInput.DisplayName = string.Empty;
         createdCredential = new CreatedCredential(displayName, userName, password);
         SetStatus($"Created login for {displayName}.");
@@ -354,6 +370,8 @@ else
             return;
         }
 
+        var selectedDeckId = assignmentInput.DeckId.Value;
+        var selectedDeck = decks.SingleOrDefault(deck => deck.Id == selectedDeckId);
         createdCredential = null;
         var classroomEntity = await GetTeacherClassroomQuery()
             .SingleOrDefaultAsync(classroom => classroom.Id == ClassroomId);
@@ -365,7 +383,7 @@ else
         }
 
         var deckExists = await DbContext.Decks.AnyAsync(deck =>
-            deck.Id == assignmentInput.DeckId.Value &&
+            deck.Id == selectedDeckId &&
             deck.IsPublished &&
             (deck.IsGlobalStock || deck.OwnerTeacherId == currentTeacher.Id));
         if (!deckExists)
@@ -375,15 +393,16 @@ else
         }
 
         var assignment = await DbContext.DeckAssignments
-            .FirstOrDefaultAsync(existingAssignment => existingAssignment.ClassroomId == classroomEntity.Id && existingAssignment.DeckId == assignmentInput.DeckId.Value);
+            .FirstOrDefaultAsync(existingAssignment => existingAssignment.ClassroomId == classroomEntity.Id && existingAssignment.DeckId == selectedDeckId);
 
+        var wasExistingAssignment = assignment is not null;
         if (assignment is null)
         {
             assignment = new DeckAssignment
             {
                 Id = Guid.NewGuid(),
                 ClassroomId = classroomEntity.Id,
-                DeckId = assignmentInput.DeckId.Value,
+                DeckId = selectedDeckId,
                 AssignedByTeacherId = currentTeacher.Id,
                 IsActive = assignmentInput.IsActive,
                 IsOpenStudyAllowed = true,
@@ -397,6 +416,15 @@ else
         }
 
         await DbContext.SaveChangesAsync();
+        Analytics.Capture(currentTeacher.Id, "deck_assigned_to_classroom", new()
+        {
+            ["classroom_id"] = classroomEntity.Id,
+            ["deck_id"] = selectedDeckId,
+            ["deck_card_count"] = selectedDeck?.CardCount,
+            ["assignment_id"] = assignment.Id,
+            ["is_active"] = assignment.IsActive,
+            ["was_existing_assignment"] = wasExistingAssignment,
+        });
         SetStatus(assignmentInput.IsActive ? "Deck assigned and activated." : "Deck assigned as inactive.");
         assignmentInput.DeckId = null;
         assignmentInput.IsActive = true;
@@ -429,6 +457,13 @@ else
 
         assignment.IsActive = !assignment.IsActive;
         await DbContext.SaveChangesAsync();
+        Analytics.Capture(currentTeacher.Id, "deck_assignment_toggled", new()
+        {
+            ["classroom_id"] = ClassroomId,
+            ["assignment_id"] = assignment.Id,
+            ["deck_id"] = assignment.DeckId,
+            ["is_active"] = assignment.IsActive,
+        });
         SetStatus(assignment.IsActive ? "Deck activated." : "Deck turned off.");
         await LoadClassroomAsync();
     }
@@ -895,6 +930,25 @@ else
     {
         statusMessage = message;
         statusClass = cssClass;
+    }
+
+    private void TrackClassroomViewed()
+    {
+        if (currentTeacher is null || classroom is null)
+        {
+            return;
+        }
+
+        Analytics.Capture(currentTeacher.Id, "classroom_workspace_viewed", new()
+        {
+            ["classroom_id"] = classroom.Id,
+            ["student_count"] = classroom.StudentCount,
+            ["active_deck_count"] = classroom.ActiveDeckCount,
+            ["assigned_deck_count"] = assignments.Count,
+            ["students_needing_attention"] = snapshot.StudentsNeedingAttention,
+            ["due_cards_now"] = snapshot.DueCardsNow,
+            ["recent_correct_percent"] = snapshot.RecentCorrectPercent,
+        });
     }
 
     private sealed class StudentInput

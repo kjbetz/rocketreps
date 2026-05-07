@@ -9,6 +9,7 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILogger<Login> Logger
 @inject IdentityRedirectManager RedirectManager
+@inject IRocketRepsAnalytics Analytics
 
 <PageTitle>Log in</PageTitle>
 
@@ -139,6 +140,7 @@
         if (result.Succeeded)
         {
             Logger.LogInformation("User logged in.");
+            await TrackSignedInUserAsync(signedInUser, !string.IsNullOrEmpty(Input.Passkey?.CredentialJson) ? "passkey" : "password");
             await RedirectManager.RedirectToReturnUrlOrDashboardAsync(ReturnUrl, signedInUser, UserManager);
         }
         else if (result.RequiresTwoFactor)
@@ -176,6 +178,42 @@
         }
 
         return await UserManager.FindByNameAsync(login);
+    }
+
+    private async Task TrackSignedInUserAsync(ApplicationUser? user, string method)
+    {
+        if (user is null)
+        {
+            return;
+        }
+
+        var role = await UserRoleAsync(user);
+        await Analytics.IdentifyAsync(user.Id, new()
+        {
+            ["role"] = role,
+            ["has_school"] = user.SchoolId is not null,
+        });
+        Analytics.Capture(user.Id, "user_signed_in", new()
+        {
+            ["role"] = role,
+            ["method"] = method,
+            ["has_return_url"] = !string.IsNullOrWhiteSpace(ReturnUrl),
+        });
+    }
+
+    private async Task<string> UserRoleAsync(ApplicationUser user)
+    {
+        if (await UserManager.IsInRoleAsync(user, "Teacher"))
+        {
+            return "Teacher";
+        }
+
+        if (await UserManager.IsInRoleAsync(user, "Student"))
+        {
+            return "Student";
+        }
+
+        return "Unknown";
     }
 
     private sealed class InputModel

@@ -11,6 +11,7 @@
 @inject ApplicationDbContext DbContext
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<ApplicationUser> UserManager
+@inject IRocketRepsAnalytics Analytics
 
 <PageTitle>@(deck?.Title ?? "Teacher Deck")</PageTitle>
 
@@ -288,6 +289,14 @@ else
         isLoading = false;
     }
 
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            TrackDeckWorkspaceViewed();
+        }
+    }
+
     private async Task SaveDeckAsync()
     {
         if (currentTeacher is null || deck is null)
@@ -326,6 +335,14 @@ else
         }
 
         SetStatus("Saved deck details.");
+        Analytics.Capture(currentTeacher.Id, "teacher_deck_saved", new()
+        {
+            ["deck_id"] = deckEntity.Id,
+            ["subject"] = deckEntity.Subject,
+            ["grade_band"] = deckEntity.GradeBand,
+            ["is_published"] = deckEntity.IsPublished,
+            ["card_count"] = cards.Count,
+        });
         await LoadDeckAsync();
     }
 
@@ -367,6 +384,7 @@ else
         }
 
         Card card;
+        var isNewCard = cardInput.EditingCardId is null;
         if (cardInput.EditingCardId is { } cardId)
         {
             var existingCard = await DbContext.Cards.SingleOrDefaultAsync(existingCard => existingCard.Id == cardId &&
@@ -420,6 +438,15 @@ else
         }
 
         SetStatus(cardInput.EditingCardId is null ? "Added card." : "Saved card.");
+        Analytics.Capture(currentTeacher.Id, isNewCard ? "teacher_card_added" : "teacher_card_updated", new()
+        {
+            ["deck_id"] = DeckId,
+            ["card_id"] = card.Id,
+            ["card_type"] = card.CardType.ToString(),
+            ["choice_count"] = choices.Count,
+            ["deck_card_count"] = isNewCard ? cards.Count + 1 : cards.Count,
+            ["deck_is_published"] = deck.IsPublished,
+        });
         cardInput.Reset();
         isCardDialogOpen = false;
         await LoadDeckAsync();
@@ -458,6 +485,15 @@ else
     {
         previewCard = cards.SingleOrDefault(card => card.Id == cardId);
         isCardDialogOpen = false;
+        if (currentTeacher is not null && previewCard is not null)
+        {
+            Analytics.Capture(currentTeacher.Id, "teacher_card_preview_opened", new()
+            {
+                ["deck_id"] = DeckId,
+                ["card_id"] = previewCard.Id,
+                ["card_type"] = previewCard.CardType.ToString(),
+            });
+        }
     }
 
     private void ClosePreviewDialog()
@@ -512,6 +548,13 @@ else
         }
 
         await ResequenceCardsAsync(DeckId);
+        Analytics.Capture(currentTeacher.Id, "teacher_card_deleted", new()
+        {
+            ["deck_id"] = DeckId,
+            ["card_id"] = card.Id,
+            ["card_type"] = card.CardType.ToString(),
+            ["deck_card_count"] = Math.Max(0, cards.Count - 1),
+        });
         SetStatus("Deleted card.");
         cardInput.Reset();
         await LoadDeckAsync();
@@ -627,6 +670,23 @@ else
     {
         statusMessage = message;
         statusClass = cssClass;
+    }
+
+    private void TrackDeckWorkspaceViewed()
+    {
+        if (currentTeacher is null || deck is null)
+        {
+            return;
+        }
+
+        Analytics.Capture(currentTeacher.Id, "teacher_deck_workspace_viewed", new()
+        {
+            ["deck_id"] = deck.Id,
+            ["subject"] = deck.Subject,
+            ["grade_band"] = deck.GradeBand,
+            ["is_published"] = deck.IsPublished,
+            ["card_count"] = cards.Count,
+        });
     }
 
     private sealed class DeckInput
