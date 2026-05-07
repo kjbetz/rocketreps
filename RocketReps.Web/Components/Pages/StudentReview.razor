@@ -169,7 +169,7 @@ else if (assignment is not null)
                                        inputmode="@AnswerInputMode"
                                        pattern="@AnswerPattern"
                                        spellcheck="false"
-                                       autofocus />
+                                       autofocus="@ShouldFocusAnswer(currentCard)" />
                                 <label for="StudentAnswer">Your answer</label>
                             </div>
                             <button type="submit" class="button-primary button-full" disabled="@isSubmitting">
@@ -233,6 +233,8 @@ else if (assignment is not null)
     private bool isConfirmingEndSession;
     private bool showBreakPrompt;
     private bool shouldFocusAnswer;
+    private bool hasHeardCurrentAudioPrompt;
+    private bool shouldPlayAudioPromptAfterRender;
     private string? loadError;
     private string? audioPromptError;
     private string selectedVoiceUri = string.Empty;
@@ -296,6 +298,13 @@ else if (assignment is not null)
         {
             shouldFocusAnswer = false;
             await answerElement.FocusAsync(preventScroll: true);
+        }
+
+        if (shouldPlayAudioPromptAfterRender && currentCard?.CardType == CardType.AudioPrompt && feedback is null)
+        {
+            shouldPlayAudioPromptAfterRender = false;
+            await SpeakCurrentWordAsync();
+            StateHasChanged();
         }
 
         if (currentCard?.CardType == CardType.AudioPrompt && !hasLoadedVoiceOptions && !isLoadingVoices)
@@ -413,6 +422,7 @@ else if (assignment is not null)
         }
 
         SetCurrentCard(await LoadNextCardAsync());
+        shouldPlayAudioPromptAfterRender = currentCard?.CardType == CardType.AudioPrompt;
         isMovingNext = false;
     }
 
@@ -434,9 +444,15 @@ else if (assignment is not null)
             {
                 audioPromptError = "This browser cannot play the word aloud. Ask your teacher for help.";
             }
-            else if (speechVoices.Count == 0)
+            else
             {
-                await LoadSpeechVoicesAsync(forceReload: true);
+                hasHeardCurrentAudioPrompt = true;
+                shouldFocusAnswer = feedback is null;
+
+                if (speechVoices.Count == 0)
+                {
+                    await LoadSpeechVoicesAsync(forceReload: true);
+                }
             }
         }
         catch (JSException)
@@ -508,11 +524,14 @@ else if (assignment is not null)
     {
         showBreakPrompt = false;
         SetCurrentCard(await LoadNextCardAsync());
+        shouldPlayAudioPromptAfterRender = currentCard?.CardType == CardType.AudioPrompt;
     }
 
     private void SetCurrentCard(ReviewCard? card)
     {
         currentCard = card;
+        hasHeardCurrentAudioPrompt = false;
+        shouldPlayAudioPromptAfterRender = false;
         currentChoiceOptions = card?.CardType == CardType.MultipleChoice
             ? MultipleChoiceOptions(card)
             : [];
@@ -627,7 +646,9 @@ else if (assignment is not null)
         }
     }
 
-    private static bool ShouldFocusAnswer(ReviewCard? card) => card is not null && card.CardType != CardType.MultipleChoice;
+    private bool ShouldFocusAnswer(ReviewCard? card) => card is not null &&
+        card.CardType != CardType.MultipleChoice &&
+        (card.CardType != CardType.AudioPrompt || hasHeardCurrentAudioPrompt);
 
     private static bool IsDecimalAnswer(string? answer) =>
         decimal.TryParse(answer, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
