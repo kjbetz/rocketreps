@@ -1,9 +1,6 @@
-﻿@implements IDisposable
-
-@using Microsoft.Extensions.Options
+﻿@using Microsoft.Extensions.Options
 @using RocketReps.Web.Data
 
-@inject NavigationManager NavigationManager
 @inject IOptions<DemoOptions> DemoOptions
 
 <header class="site-header">
@@ -50,35 +47,13 @@
                 <NavLink class="nav-link" href="Account/Manage">@context.User.Identity?.Name</NavLink>
                 <form action="Account/Logout" method="post" class="logout-form">
                     <AntiforgeryToken />
-                    <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                    <input type="hidden" name="ReturnUrl" value="" />
                     <button type="submit" class="nav-link nav-button">Log out</button>
                 </form>
             </Authorized>
             <NotAuthorized>
-                <NavLink class="nav-link" href="Account/Login">Log in</NavLink>
-                <NavLink class="nav-link nav-cta" href="Account/Register">Teacher Sign Up</NavLink>
+                <NavLink class="nav-link nav-cta" href="early-access">Early Access</NavLink>
             </NotAuthorized>
         </AuthorizeView>
     </nav>
 </header>
-
-@code {
-    private string? currentUrl;
-
-    protected override void OnInitialized()
-    {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-        NavigationManager.LocationChanged += OnLocationChanged;
-    }
-
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
-        StateHasChanged();
-    }
-
-    public void Dispose()
-    {
-        NavigationManager.LocationChanged -= OnLocationChanged;
-    }
-}

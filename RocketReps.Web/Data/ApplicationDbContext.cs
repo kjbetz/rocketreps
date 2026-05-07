@@ -14,6 +14,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<DeckAssignment> DeckAssignments => Set<DeckAssignment>();
     public DbSet<StudentCardProgress> StudentCardProgress => Set<StudentCardProgress>();
     public DbSet<ReviewLog> ReviewLogs => Set<ReviewLog>();
+    public DbSet<EarlyAccessSignup> EarlyAccessSignups => Set<EarlyAccessSignup>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -119,6 +120,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .WithMany(user => user.ReviewLogs)
                 .HasForeignKey(review => review.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<EarlyAccessSignup>(entity =>
+        {
+            entity.Property(signup => signup.Name).HasMaxLength(160).IsRequired();
+            entity.Property(signup => signup.Email).HasMaxLength(320).IsRequired();
+            entity.Property(signup => signup.Role).HasMaxLength(80).IsRequired();
+            entity.Property(signup => signup.SchoolOrOrganization).HasMaxLength(200);
+            entity.Property(signup => signup.PlanInterest).HasMaxLength(80);
+            entity.Property(signup => signup.Message).HasMaxLength(1_000);
+            entity.Property(signup => signup.Source).HasMaxLength(80).HasDefaultValue("Open House");
+            entity.Property(signup => signup.CreatedAt).HasDefaultValueSql("now()");
+            entity.HasIndex(signup => signup.Email);
+            entity.HasIndex(signup => signup.CreatedAt);
         });
     }
 }

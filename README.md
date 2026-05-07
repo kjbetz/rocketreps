@@ -10,7 +10,7 @@ The app currently includes the foundation for the first vertical slice:
 
 - ASP.NET Core Blazor app using Identity for authentication.
 - PostgreSQL database wired through Aspire, with pgWeb available from the Aspire dashboard for local database inspection.
-- EF Core domain schema for schools, classrooms, memberships, decks, cards, assignments, student card progress, and review logs.
+- EF Core domain schema for schools, classrooms, memberships, decks, cards, assignments, student card progress, review logs, and early access signups.
 - Startup seeding for `Admin`, `Teacher`, and `Student` roles plus `Riverview STEM Academy`.
 - Ready-made global stock math decks for addition, subtraction, multiplication, and division facts, including full mixed decks and focused `0s`-`12s` practice decks where appropriate.
 - Ready-made global stock `Spelling Lift-Off` deck with audio-prompt spelling practice.
@@ -20,8 +20,9 @@ The app currently includes the foundation for the first vertical slice:
 - `/decks` page that lists ready-made classroom decks.
 - `/teacher/decks` teacher deck library for creating custom teacher-owned decks, publishing/unpublishing them, and opening deck workspaces.
 - `/teacher/decks/{id}` deck workspace for editing custom deck details, adding/editing/deleting cards, and previewing cards before assigning them.
-- `/pricing` page with teacher self-service Free, Pro, and Pro+ plan cards plus a school/district contact section.
-- Teacher-focused registration that assigns the `Teacher` role.
+- `/pricing` page with teacher self-service Free, Pro, and Pro + AI plan cards plus a school/district contact section.
+- `/early-access` page that captures Open House and pricing interest without creating accounts.
+- Public teacher account creation is paused; `/Account/Register` redirects visitors to early access.
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
 - `/teacher` classroom-first dashboard for classroom creation, classroom entry points, and deck library access.
 - `/teacher/classrooms/{id}` classroom workspace for student login generation, ready-made deck assignment, active/inactive deck toggles, classroom progress snapshots, teacher attention signals, deck-level progress summaries, and roster progress review.
@@ -33,9 +34,9 @@ The app currently includes the foundation for the first vertical slice:
 
 ## Product Direction
 
-The current teacher-first flow is:
+The current teacher-first product flow is:
 
-1. Teacher signs up with email and creates or joins a school/workspace.
+1. Teacher requests early access and is onboarded after follow-up, or uses a demo teacher account during Open House mode.
 2. Teacher creates a classroom from `/teacher`.
 3. Teacher opens the classroom workspace.
 4. Teacher generates student usernames and simple passwords inside that classroom.
@@ -47,7 +48,7 @@ The current teacher-first flow is:
 10. The app stores review history and schedules future reviews.
 11. Students see lightweight progress, due-card status, streaks, and next practice windows.
 
-Bulk deck import, card reordering, stock-deck copying, plan enforcement, checkout, and deeper deck-first/student-first teacher progress drilldowns are natural next steps. The current `/pricing` page is informational: teacher plan CTAs route to registration, and school/district pricing is a contact-us prompt. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
+Bulk deck import, card reordering, stock-deck copying, plan enforcement, checkout, and deeper deck-first/student-first teacher progress drilldowns are natural next steps. The current `/pricing` page is informational: teacher and school/district plan CTAs route to early access until checkout exists. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
 
 Teacher-created custom decks are owned by the teacher through `Deck.OwnerTeacherId`. Draft decks are editable but not assignable; published custom decks appear alongside ready-made decks in classroom assignment flows. Card authoring currently supports typed flashcards, math facts, multiple choice cards with `ChoicesJson`, and audio-prompt spelling cards. Card preview is read-only and is intended for teacher verification, not scheduling or student progress simulation.
 
@@ -153,14 +154,14 @@ When a Podman network variable is set, `scripts/ci/apply-ef-bundle.sh` runs the 
 
 To exercise the current vertical slice locally:
 
-1. Register a teacher at `/Account/Register`.
-2. Confirm the teacher account from the Postmark-delivered confirmation email.
-3. Open `/teacher` and create a classroom.
+1. Enable demo mode and open `/demo`.
+2. Launch the teacher demo account.
+3. Open `/teacher` and create a classroom if needed, or use one of the seeded demo classrooms.
 4. Open the classroom workspace from the classroom card.
-5. Generate a student login and save the displayed username/password.
+5. Generate a student login and save the displayed username/password if testing manual student creation.
 6. Optionally open `/teacher/decks`, create a custom deck, add cards from the deck workspace, preview a card, and publish the deck.
 7. Assign a ready-made or published custom deck to the classroom and leave it active, or activate it from the assignment card.
-8. Log out and log in with the generated student username/password; the student should land on `/student`.
+8. Log out or return to `/demo`, then launch a demo student or log in with a generated student username/password; the student should land on `/student`.
 9. Start the active deck mission.
 
 ## Seed Data

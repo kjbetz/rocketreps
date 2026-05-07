@@ -158,3 +158,16 @@ public sealed class ReviewLog
     public Card? Card { get; set; }
     public DeckAssignment? DeckAssignment { get; set; }
 }
+
+public sealed class EarlyAccessSignup
+{
+    public Guid Id { get; set; }
+    public required string Name { get; set; }
+    public required string Email { get; set; }
+    public required string Role { get; set; }
+    public string? SchoolOrOrganization { get; set; }
+    public string? PlanInterest { get; set; }
+    public string? Message { get; set; }
+    public string Source { get; set; } = "Open House";
+    public DateTimeOffset CreatedAt { get; set; }
+}
