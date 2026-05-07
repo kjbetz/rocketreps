@@ -12,15 +12,15 @@ The app currently includes the foundation for the first vertical slice:
 - PostgreSQL database wired through Aspire, with pgWeb available from the Aspire dashboard for local database inspection.
 - EF Core domain schema for schools, classrooms, memberships, decks, cards, assignments, student card progress, and review logs.
 - Startup seeding for `Admin`, `Teacher`, and `Student` roles plus `Riverview STEM Academy`.
-- Global stock math decks for addition, subtraction, multiplication, and division facts, including full mixed decks and focused `0s`-`12s` practice decks where appropriate.
-- Global stock `Spelling Lift-Off` deck with audio-prompt spelling practice.
-- Global stock `California Facts` deck with multiple-choice social studies practice.
+- Ready-made global stock math decks for addition, subtraction, multiplication, and division facts, including full mixed decks and focused `0s`-`12s` practice decks where appropriate.
+- Ready-made global stock `Spelling Lift-Off` deck with audio-prompt spelling practice.
+- Ready-made global stock `California Facts` deck with multiple-choice social studies practice.
 - Custom Rocket Reps landing page and responsive navigation using custom CSS instead of Bootstrap.
 - Light/dark/system theme preference from a compact icon button in the top bar.
-- `/decks` page that lists seeded stock decks.
+- `/decks` page that lists ready-made classroom decks.
 - Teacher-focused registration that assigns the `Teacher` role.
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
-- `/teacher` dashboard for classroom creation, student login generation, stock deck assignment, and active/inactive deck toggles.
+- `/teacher` dashboard for classroom creation, student login generation, ready-made deck assignment, and active/inactive deck toggles.
 - `/student` dashboard that groups active classroom deck assignments into `Due Now`, `Ready For Launch`, and `All Caught Up` sections using due-card and new-card availability, with a per-deck mission details panel for status counts, attempts, correct totals, streaks, per-card status, and next due times.
 - `/student/review/{assignmentId}` flow that records right/wrong reviews, shows lifetime correct counts after correct answers, keeps the answer input focused between typed cards, uses mobile-friendly numeric input for math facts, supports shuffled multiple-choice cards, supports audio-prompt spelling cards with browser speech synthesis and a local voice picker, schedules cards with FSRS.Core, and updates student card progress.
 - Config-gated `/demo` launcher for open-house demos with seeded teacher, student, classroom, and deck assignment data.
@@ -29,19 +29,19 @@ The app currently includes the foundation for the first vertical slice:
 
 ## Product Direction
 
-The intended MVP flow is:
+The current teacher-first flow is:
 
 1. Teacher signs up with email and creates or joins a school/workspace.
 2. Teacher creates a classroom.
 3. Teacher generates student usernames and simple passwords.
-4. Teacher assigns stock or custom decks to a classroom.
+4. Teacher assigns ready-made decks to a classroom.
 5. Teacher marks deck assignments active when students should work on them.
 6. Student logs in with username and password, no student email required.
 7. Student studies active assigned cards using a simple right/wrong interaction.
 8. The app stores review history and schedules future reviews.
-9. Teacher sees lightweight progress and difficult-card signals.
+9. Students see lightweight progress, due-card status, streaks, and next practice windows.
 
-Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
+Custom deck authoring and teacher-facing progress reports are natural next steps. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
 
 For younger students, the first review model is binary: right or wrong. Internally this maps to scheduling-friendly ratings:
 
@@ -147,7 +147,7 @@ To exercise the current vertical slice locally:
 2. Confirm the teacher account from the Postmark-delivered confirmation email.
 3. Open `/teacher` and create a classroom.
 4. Generate a student login and save the displayed username/password.
-5. Assign a stock deck to the classroom and leave it active, or activate it from the assignment card.
+5. Assign a ready-made deck to the classroom and leave it active, or activate it from the assignment card.
 6. Log out and log in with the generated student username/password; the student should land on `/student`.
 7. Start the active deck mission.
 
@@ -157,7 +157,7 @@ Startup seeding creates missing baseline data in every environment:
 
 - School: `Riverview STEM Academy`
 - Roles: `Admin`, `Teacher`, `Student`
-- Stock decks:
+- Ready-made stock decks:
   - `Addition Launch Pad`
   - `Addition Launch Pad: 0s` through `Addition Launch Pad: 12s`
   - `Subtraction Orbit`

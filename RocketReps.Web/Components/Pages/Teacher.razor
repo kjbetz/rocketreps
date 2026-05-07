@@ -18,7 +18,7 @@
 <section class="page-hero compact">
     <p class="eyebrow">Teacher launchpad</p>
     <h1>Build your classroom mission.</h1>
-    <p>Create classrooms, generate student logins, and activate stock decks when your class is ready to practice.</p>
+    <p>Create classrooms, generate student logins, and activate ready-made decks when your class is ready to practice.</p>
 </section>
 
 @if (isLoading)
@@ -94,7 +94,7 @@ else
 
         <section class="layout-panel layout-panel-wide">
             <div class="content-card">
-                <h2>Assign a stock deck</h2>
+                <h2>Assign a ready-made deck</h2>
                 <EditForm Model="assignmentInput" OnValidSubmit="AssignDeckAsync">
                     <DataAnnotationsValidator />
                     <ValidationSummary class="status-danger" />
@@ -157,7 +157,7 @@ else
         <h2>Deck assignments</h2>
         @if (assignments.Count == 0)
         {
-            <div class="content-card">No decks assigned yet. Assign a stock deck above, then turn it active when students should work on it.</div>
+            <div class="content-card">No decks assigned yet. Assign a ready-made deck above, then turn it active when students should work on it.</div>
         }
         else
         {
