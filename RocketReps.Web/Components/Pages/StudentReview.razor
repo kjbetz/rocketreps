@@ -3,6 +3,7 @@
 @attribute [Authorize(Roles = "Student")]
 @using System.ComponentModel.DataAnnotations
 @using System.Globalization
+@using System.Text.Json
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
@@ -132,29 +133,50 @@ else if (assignment is not null)
 
                 @if (feedback is null)
                 {
-                    <EditForm Model="answerInput" OnValidSubmit="SubmitAnswerAsync">
-                        <DataAnnotationsValidator />
-                        <ValidationSummary class="status-danger" />
-                        <div class="field-stack">
-                            <input @ref="answerElement"
-                                   @bind="answerInput.Answer"
-                                   @bind:event="oninput"
-                                   id="StudentAnswer"
-                                   class="field-input review-answer"
-                                   autocomplete="off"
-                                   autocapitalize="off"
-                                   autocorrect="off"
-                                   enterkeyhint="done"
-                                   inputmode="@AnswerInputMode"
-                                   pattern="@AnswerPattern"
-                                   spellcheck="false"
-                                   autofocus />
-                            <label for="StudentAnswer">Your answer</label>
-                        </div>
-                        <button type="submit" class="button-primary button-full" disabled="@isSubmitting">
-                            @(isSubmitting ? "Checking..." : "Check answer")
-                        </button>
-                    </EditForm>
+                    @if (currentCard.CardType == CardType.MultipleChoice)
+                    {
+                        @if (currentChoiceOptions.Count == 0)
+                        {
+                            <p class="status-danger">This multiple-choice card has no choices yet.</p>
+                        }
+                        else
+                        {
+                            <div class="choice-grid" role="group" aria-label="Answer choices">
+                                @foreach (var choice in currentChoiceOptions)
+                                {
+                                    <button type="button" class="choice-button" disabled="@isSubmitting" @onclick="() => SubmitAnswerAsync(choice)">
+                                        @choice
+                                    </button>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <EditForm Model="answerInput" OnValidSubmit="SubmitTypedAnswerAsync">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="status-danger" />
+                            <div class="field-stack">
+                                <input @ref="answerElement"
+                                       @bind="answerInput.Answer"
+                                       @bind:event="oninput"
+                                       id="StudentAnswer"
+                                       class="field-input review-answer"
+                                       autocomplete="off"
+                                       autocapitalize="off"
+                                       autocorrect="off"
+                                       enterkeyhint="done"
+                                       inputmode="@AnswerInputMode"
+                                       pattern="@AnswerPattern"
+                                       spellcheck="false"
+                                       autofocus />
+                                <label for="StudentAnswer">Your answer</label>
+                            </div>
+                            <button type="submit" class="button-primary button-full" disabled="@isSubmitting">
+                                @(isSubmitting ? "Checking..." : "Check answer")
+                            </button>
+                        </EditForm>
+                    }
                 }
                 else
                 {
@@ -199,6 +221,7 @@ else if (assignment is not null)
     private ApplicationUser? currentStudent;
     private AssignmentHeader? assignment;
     private ReviewCard? currentCard;
+    private IReadOnlyList<string> currentChoiceOptions = [];
     private AnswerFeedback? feedback;
     private bool isLoading = true;
     private bool isSubmitting;
@@ -263,9 +286,8 @@ else if (assignment is not null)
             return;
         }
 
-        currentCard = await LoadNextCardAsync();
+        SetCurrentCard(await LoadNextCardAsync());
         isLoading = false;
-        shouldFocusAnswer = currentCard is not null;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -283,7 +305,9 @@ else if (assignment is not null)
         }
     }
 
-    private async Task SubmitAnswerAsync()
+    private Task SubmitTypedAnswerAsync() => SubmitAnswerAsync(answerInput.Answer);
+
+    private async Task SubmitAnswerAsync(string submittedAnswer)
     {
         if (isSubmitting || currentStudent is null || currentCard is null || assignment is null)
         {
@@ -294,7 +318,7 @@ else if (assignment is not null)
         try
         {
             var correctAnswer = currentCard.CorrectAnswer ?? currentCard.Back;
-            var wasCorrect = NormalizeAnswer(answerInput.Answer) == NormalizeAnswer(correctAnswer);
+            var wasCorrect = NormalizeAnswer(submittedAnswer) == NormalizeAnswer(correctAnswer);
             var rating = wasCorrect ? ReviewRating.Good : ReviewRating.Again;
             var now = DateTimeOffset.UtcNow;
 
@@ -360,7 +384,7 @@ else if (assignment is not null)
     private void CancelEndSession()
     {
         isConfirmingEndSession = false;
-        shouldFocusAnswer = currentCard is not null && feedback is null;
+        shouldFocusAnswer = feedback is null && ShouldFocusAnswer(currentCard);
     }
 
     private void EndSession()
@@ -383,14 +407,13 @@ else if (assignment is not null)
         if (completedCount > 0 && completedCount % BreakPromptCardCount == 0 && await HasEligibleCardAsync())
         {
             showBreakPrompt = true;
-            currentCard = null;
+            SetCurrentCard(null);
             isMovingNext = false;
             return;
         }
 
-        currentCard = await LoadNextCardAsync();
+        SetCurrentCard(await LoadNextCardAsync());
         isMovingNext = false;
-        shouldFocusAnswer = currentCard is not null;
     }
 
     private async Task SpeakCurrentWordAsync()
@@ -484,8 +507,16 @@ else if (assignment is not null)
     private async Task ContinueReviewAsync()
     {
         showBreakPrompt = false;
-        currentCard = await LoadNextCardAsync();
-        shouldFocusAnswer = currentCard is not null;
+        SetCurrentCard(await LoadNextCardAsync());
+    }
+
+    private void SetCurrentCard(ReviewCard? card)
+    {
+        currentCard = card;
+        currentChoiceOptions = card?.CardType == CardType.MultipleChoice
+            ? MultipleChoiceOptions(card)
+            : [];
+        shouldFocusAnswer = ShouldFocusAnswer(card);
     }
 
     private async Task<ReviewCard?> LoadNextCardAsync()
@@ -509,6 +540,7 @@ else if (assignment is not null)
                 progress.Card.Back,
                 progress.Card.CorrectAnswer,
                 progress.Card.CardType,
+                progress.Card.ChoicesJson,
                 true))
             .FirstOrDefaultAsync();
 
@@ -532,7 +564,7 @@ else if (assignment is not null)
         var randomIndex = Random.Shared.Next(newCardCount);
         return await newCards
             .Skip(randomIndex)
-            .Select(card => new ReviewCard(card.Id, card.Front, card.Back, card.CorrectAnswer, card.CardType, false))
+            .Select(card => new ReviewCard(card.Id, card.Front, card.Back, card.CorrectAnswer, card.CardType, card.ChoicesJson, false))
             .FirstAsync();
     }
 
@@ -562,6 +594,40 @@ else if (assignment is not null)
     }
 
     private static string NormalizeAnswer(string value) => value.Trim().ToUpperInvariant();
+
+    private static IReadOnlyList<string> MultipleChoiceOptions(ReviewCard card)
+    {
+        if (string.IsNullOrWhiteSpace(card.ChoicesJson))
+        {
+            return [];
+        }
+
+        try
+        {
+            var choices = JsonSerializer.Deserialize<List<string>>(card.ChoicesJson)?
+                .Where(choice => !string.IsNullOrWhiteSpace(choice))
+                .Select(choice => choice.Trim())
+                .ToList() ?? [];
+
+            Shuffle(choices);
+            return choices;
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static void Shuffle<T>(IList<T> values)
+    {
+        for (var index = values.Count - 1; index > 0; index--)
+        {
+            var swapIndex = Random.Shared.Next(index + 1);
+            (values[index], values[swapIndex]) = (values[swapIndex], values[index]);
+        }
+    }
+
+    private static bool ShouldFocusAnswer(ReviewCard? card) => card is not null && card.CardType != CardType.MultipleChoice;
 
     private static bool IsDecimalAnswer(string? answer) =>
         decimal.TryParse(answer, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
@@ -593,7 +659,7 @@ else if (assignment is not null)
     }
 
     private sealed record AssignmentHeader(Guid AssignmentId, string ClassroomName, string DeckTitle, Guid DeckId);
-    private sealed record ReviewCard(Guid Id, string Front, string Back, string? CorrectAnswer, CardType CardType, bool IsDue);
+    private sealed record ReviewCard(Guid Id, string Front, string Back, string? CorrectAnswer, CardType CardType, string? ChoicesJson, bool IsDue);
     private sealed record AnswerFeedback(bool WasCorrect, string CorrectAnswer, int CorrectReviewCount);
 
     public async ValueTask DisposeAsync()

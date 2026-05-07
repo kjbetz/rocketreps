@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 namespace RocketReps.Web.Data;
 
@@ -34,6 +35,7 @@ public static class ApplicationDataSeeder
         await SeedMathDeckAsync(dbContext, "Division Docking", "Practice division facts connected to the 1 through 12 times tables.", BuildDivisionCards());
         await SeedFocusedMathDecksAsync(dbContext);
         await SeedSpellingDeckAsync(dbContext);
+        await SeedCaliforniaFactsDeckAsync(dbContext);
 
         await dbContext.SaveChangesAsync();
 
@@ -196,6 +198,66 @@ public static class ApplicationDataSeeder
         }
     }
 
+    private static async Task SeedCaliforniaFactsDeckAsync(ApplicationDbContext dbContext)
+    {
+        var facts = new[]
+        {
+            new MultipleChoiceSeed("What is the capital of California?", "Sacramento", ["Sacramento", "Los Angeles", "San Francisco", "San Diego"]),
+            new MultipleChoiceSeed("What is California's nickname?", "The Golden State", ["The Golden State", "The Sunshine State", "The Empire State", "The Garden State"]),
+            new MultipleChoiceSeed("Which ocean borders California?", "Pacific Ocean", ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Arctic Ocean"]),
+            new MultipleChoiceSeed("What is California's state flower?", "California poppy", ["California poppy", "Rose", "Sunflower", "Bluebonnet"]),
+            new MultipleChoiceSeed("What is California's state bird?", "California quail", ["California quail", "Bald eagle", "Roadrunner", "Robin"]),
+            new MultipleChoiceSeed("What is California's state animal?", "California grizzly bear", ["California grizzly bear", "Mountain lion", "Gray wolf", "Black bear"]),
+            new MultipleChoiceSeed("What is California's state tree?", "Coast redwood", ["Coast redwood", "Palm tree", "Joshua tree", "Maple tree"]),
+            new MultipleChoiceSeed("What is the largest city in California?", "Los Angeles", ["Los Angeles", "Sacramento", "San Jose", "Fresno"]),
+            new MultipleChoiceSeed("Which famous bridge is in San Francisco?", "Golden Gate Bridge", ["Golden Gate Bridge", "Brooklyn Bridge", "London Bridge", "Sunshine Skyway Bridge"]),
+            new MultipleChoiceSeed("Which national park in California is famous for Yosemite Falls and Half Dome?", "Yosemite National Park", ["Yosemite National Park", "Yellowstone National Park", "Grand Canyon National Park", "Everglades National Park"]),
+            new MultipleChoiceSeed("Which mountain range runs through eastern California?", "Sierra Nevada", ["Sierra Nevada", "Appalachian Mountains", "Ozark Mountains", "Cascade Range"]),
+            new MultipleChoiceSeed("In what year did the California Gold Rush begin?", "1848", ["1848", "1776", "1906", "1969"]),
+            new MultipleChoiceSeed("What is California's postal abbreviation?", "CA", ["CA", "CL", "CF", "CO"]),
+            new MultipleChoiceSeed("Which country borders California to the south?", "Mexico", ["Mexico", "Canada", "Brazil", "Spain"]),
+            new MultipleChoiceSeed("Which California valley is known for growing lots of food?", "Central Valley", ["Central Valley", "Death Valley", "Silicon Valley", "Monument Valley"]),
+            new MultipleChoiceSeed("Which desert is partly in southeastern California?", "Mojave Desert", ["Mojave Desert", "Sahara Desert", "Gobi Desert", "Great Victoria Desert"]),
+        };
+
+        var deck = await dbContext.Decks.Include(deck => deck.Cards).SingleOrDefaultAsync(deck => deck.IsGlobalStock && deck.Title == "California Facts");
+        if (deck is null)
+        {
+            deck = new Deck
+            {
+                Id = Guid.NewGuid(),
+                Title = "California Facts",
+                Description = "Practice quick facts about California with tap-friendly multiple choice questions.",
+                Subject = "Social Studies",
+                GradeBand = "Elementary and Middle School",
+                IsGlobalStock = true,
+                IsPublished = true,
+            };
+
+            dbContext.Decks.Add(deck);
+        }
+
+        if (deck.Cards.Count > 0)
+        {
+            return;
+        }
+
+        for (var index = 0; index < facts.Length; index++)
+        {
+            var fact = facts[index];
+            deck.Cards.Add(new Card
+            {
+                Id = Guid.NewGuid(),
+                Front = fact.Question,
+                Back = fact.CorrectAnswer,
+                CorrectAnswer = fact.CorrectAnswer,
+                ChoicesJson = JsonSerializer.Serialize(fact.Choices),
+                CardType = CardType.MultipleChoice,
+                SortOrder = index + 1,
+            });
+        }
+    }
+
     private static List<MathFactSeed> BuildAdditionCards()
     {
         var facts = new List<MathFactSeed>();
@@ -297,4 +359,6 @@ public static class ApplicationDataSeeder
     }
 
     private sealed record MathFactSeed(string Question, string Answer);
+
+    private sealed record MultipleChoiceSeed(string Question, string CorrectAnswer, IReadOnlyList<string> Choices);
 }

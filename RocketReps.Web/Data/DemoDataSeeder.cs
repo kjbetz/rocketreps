@@ -14,8 +14,8 @@ public static class DemoDataSeeder
 
     private static readonly DemoClassSeed[] DemoClasses =
     [
-        new("Mission Control Math", "DEMO01", ["Addition Launch Pad: 1s", "Addition Launch Pad: 2s", "Multiplication Mission: 5s", "Spelling Lift-Off"]),
-        new("Rocket Lab Facts", "DEMO02", ["Subtraction Orbit: 3s", "Multiplication Mission: 10s", "Division Docking: 2s", "Spelling Lift-Off"]),
+        new("Mission Control Math", "DEMO01", ["Addition Launch Pad: 1s", "Addition Launch Pad: 2s", "Multiplication Mission: 5s", "Spelling Lift-Off", "California Facts"]),
+        new("Rocket Lab Facts", "DEMO02", ["Subtraction Orbit: 3s", "Multiplication Mission: 10s", "Division Docking: 2s", "Spelling Lift-Off", "California Facts"]),
     ];
 
     public static string StudentUserName(int number) => $"{StudentUserNamePrefix}{number:00}";
