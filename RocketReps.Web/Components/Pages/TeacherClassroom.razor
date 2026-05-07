@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Teacher")]
 @using System.ComponentModel.DataAnnotations
+@using System.Globalization
 @using System.Security.Cryptography
 @using System.Text
 @using Microsoft.AspNetCore.Authorization
@@ -66,6 +67,51 @@ else
             <p class="status-muted">Passwords are shown once. Reset the student password later if this one is lost.</p>
         </section>
     }
+
+    <section class="dashboard-section">
+        <div class="dashboard-section-header">
+            <div>
+                <p class="eyebrow">Classroom snapshot</p>
+                <h2>What needs attention today</h2>
+            </div>
+        </div>
+        <div class="teacher-snapshot-grid" aria-label="Classroom progress summary">
+            <div>
+                <strong>@snapshot.PracticedThisWeek</strong>
+                <span>Practiced this week</span>
+            </div>
+            <div>
+                <strong>@snapshot.StudentsNeedingAttention</strong>
+                <span>Need attention</span>
+            </div>
+            <div>
+                <strong>@snapshot.DueCardsNow</strong>
+                <span>Due cards now</span>
+            </div>
+            <div>
+                <strong>@PercentText(snapshot.RecentCorrectPercent)</strong>
+                <span>Recent correct</span>
+            </div>
+        </div>
+
+        @if (attentionItems.Count == 0)
+        {
+            <div class="content-card teacher-empty-state">No urgent student signals yet. Once students practice, this area will show quick follow-ups.</div>
+        }
+        else
+        {
+            <div class="teacher-attention-list" aria-label="Students needing attention">
+                @foreach (var item in attentionItems)
+                {
+                    <article class="teacher-attention-card">
+                        <span class="status-pill @item.SeverityClass">@item.Signal</span>
+                        <h3>@item.StudentName</h3>
+                        <p>@item.Suggestion</p>
+                    </article>
+                }
+            </div>
+        }
+    </section>
 
     <div class="layout-grid dashboard-grid">
         <section class="layout-panel">
@@ -134,7 +180,22 @@ else
                             <h3>@assignment.DeckTitle</h3>
                             <span class="@(assignment.IsActive ? "status-pill active" : "status-pill")">@(assignment.IsActive ? "Active" : "Inactive")</span>
                         </div>
-                        <p>@assignment.CardCount cards</p>
+                        <p>@assignment.CardCount cards · @assignment.StartedStudentCount started · @assignment.CaughtUpStudentCount caught up</p>
+                        <div class="teacher-card-metrics">
+                            <span>@assignment.DueCardCount due now</span>
+                            <span>@assignment.NotStartedStudentCount not started</span>
+                            <span>@AccuracyText(assignment.RecentAttempts, assignment.RecentCorrectCount)</span>
+                        </div>
+                        @if (assignment.TrickyCards.Count > 0)
+                        {
+                            <div class="teacher-tricky-list">
+                                <strong>Recently tricky</strong>
+                                @foreach (var card in assignment.TrickyCards)
+                                {
+                                    <span>@card.Prompt (@card.MissCount misses)</span>
+                                }
+                            </div>
+                        }
                         <button type="button" class="button-secondary" @onclick="() => ToggleAssignmentAsync(assignment.Id)">
                             @(assignment.IsActive ? "Turn off" : "Activate")
                         </button>
@@ -160,19 +221,38 @@ else
             <div class="table-wrap content-card">
                 <table class="data-table">
                     <thead>
-                        <tr>
-                            <th>Student</th>
-                            <th>Username</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var student in students)
-                        {
                             <tr>
-                                <td>@student.DisplayName</td>
-                                <td>@student.UserName</td>
+                                <th>Student</th>
+                                <th>Username</th>
+                                <th>Status</th>
+                                <th>Due</th>
+                                <th>Recent correct</th>
+                                <th>Last practice</th>
+                                <th>Recently tricky</th>
                             </tr>
-                        }
+                        </thead>
+                        <tbody>
+                            @foreach (var student in students)
+                            {
+                                <tr>
+                                    <td>@student.DisplayName</td>
+                                    <td>@student.UserName</td>
+                                    <td><span class="status-pill @student.StatusClass">@student.StatusText</span></td>
+                                    <td>@student.DueCardCount</td>
+                                    <td>@AccuracyText(student.RecentAttempts, student.RecentCorrectCount)</td>
+                                    <td>@LastPracticeText(student.LastReviewedAt)</td>
+                                    <td>
+                                        @if (student.TrickyCards.Count == 0)
+                                        {
+                                            <span class="status-muted">None yet</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@string.Join(", ", student.TrickyCards.Select(card => card.Prompt))</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
                     </tbody>
                 </table>
             </div>
@@ -196,6 +276,8 @@ else
     private List<DeckOption> decks = [];
     private List<AssignmentSummary> assignments = [];
     private List<StudentSummary> students = [];
+    private ClassroomSnapshot snapshot = new(0, 0, 0, null);
+    private List<AttentionItem> attentionItems = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -373,6 +455,8 @@ else
             decks = [];
             assignments = [];
             students = [];
+            snapshot = new ClassroomSnapshot(0, 0, 0, null);
+            attentionItems = [];
             return;
         }
 
@@ -382,25 +466,142 @@ else
             .Select(deck => new DeckOption(deck.Id, deck.Title, deck.Cards.Count))
             .ToListAsync();
 
-        assignments = await DbContext.DeckAssignments
+        var assignmentSeeds = await DbContext.DeckAssignments
             .Where(assignment => assignment.ClassroomId == ClassroomId)
             .OrderBy(assignment => assignment.Deck!.Title)
-            .Select(assignment => new AssignmentSummary(
+            .Select(assignment => new AssignmentSeed(
                 assignment.Id,
+                assignment.DeckId,
                 assignment.Deck!.Title,
                 assignment.Deck.Cards.Count,
                 assignment.IsActive))
             .ToListAsync();
 
-        students = await DbContext.ClassroomMemberships
+        var studentSeeds = await DbContext.ClassroomMemberships
             .Where(membership => membership.ClassroomId == ClassroomId &&
                 membership.Role == ClassroomMemberRole.Student &&
                 membership.Status == ClassroomMemberStatus.Approved)
             .OrderBy(membership => membership.User!.DisplayName)
-            .Select(membership => new StudentSummary(
+            .Select(membership => new StudentSeed(
+                membership.UserId,
                 membership.User!.DisplayName ?? membership.User.UserName ?? "Student",
                 membership.User.UserName ?? ""))
             .ToListAsync();
+
+        await LoadProgressSummariesAsync(assignmentSeeds, studentSeeds);
+    }
+
+    private async Task LoadProgressSummariesAsync(IReadOnlyList<AssignmentSeed> assignmentSeeds, IReadOnlyList<StudentSeed> studentSeeds)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var recentSince = now.AddDays(-7);
+        var inactiveSince = now.AddDays(-5);
+        var activeAssignments = assignmentSeeds.Where(assignment => assignment.IsActive).ToList();
+        var studentIds = studentSeeds.Select(student => student.UserId).ToHashSet();
+        var assignmentIds = assignmentSeeds.Select(assignment => assignment.Id).ToHashSet();
+        var deckIds = assignmentSeeds.Select(assignment => assignment.DeckId).ToHashSet();
+
+        if (studentSeeds.Count == 0 || assignmentSeeds.Count == 0)
+        {
+            assignments = assignmentSeeds
+                .Select(assignment => new AssignmentSummary(assignment.Id, assignment.DeckId, assignment.DeckTitle, assignment.CardCount, assignment.IsActive, 0, 0, 0, 0, 0, 0, []))
+                .ToList();
+            students = studentSeeds
+                .Select(student => new StudentSummary(student.UserId, student.DisplayName, student.UserName, 0, 0, 0, 0, 0, 0, 0, 0, null, []))
+                .ToList();
+            snapshot = new ClassroomSnapshot(0, 0, 0, null);
+            attentionItems = [];
+            return;
+        }
+
+        var cards = await DbContext.Cards
+            .Where(card => deckIds.Contains(card.DeckId))
+            .OrderBy(card => card.SortOrder)
+            .Select(card => new CardSeed(card.Id, card.DeckId, card.Front, card.CardType, card.SortOrder))
+            .ToListAsync();
+        var cardIds = cards.Select(card => card.Id).ToHashSet();
+
+        var progressEntries = await DbContext.StudentCardProgress
+            .Where(progress => studentIds.Contains(progress.UserId) && cardIds.Contains(progress.CardId))
+            .Select(progress => new ProgressSeed(
+                progress.UserId,
+                progress.CardId,
+                progress.DueAt,
+                progress.ReviewCount,
+                progress.LapseCount,
+                progress.FsrsState,
+                progress.LastReviewedAt))
+            .ToListAsync();
+
+        var reviews = await DbContext.ReviewLogs
+            .Where(review => review.DeckAssignmentId != null &&
+                assignmentIds.Contains(review.DeckAssignmentId.Value) &&
+                studentIds.Contains(review.UserId))
+            .Select(review => new ReviewSeed(
+                review.UserId,
+                review.CardId,
+                review.DeckAssignmentId!.Value,
+                review.ReviewedAt,
+                review.WasCorrect))
+            .ToListAsync();
+
+        var cardsByDeck = cards
+            .GroupBy(card => card.DeckId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+        var cardById = cards.ToDictionary(card => card.Id);
+        var assignmentById = assignmentSeeds.ToDictionary(assignment => assignment.Id);
+        var assignmentByDeckId = assignmentSeeds.ToDictionary(assignment => assignment.DeckId);
+        var progressByStudentCard = progressEntries
+            .GroupBy(progress => (progress.UserId, progress.CardId))
+            .ToDictionary(group => group.Key, group => group.First());
+        var reviewsByAssignment = reviews
+            .GroupBy(review => review.DeckAssignmentId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+        var reviewsByStudent = reviews
+            .GroupBy(review => review.UserId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        assignments = assignmentSeeds
+            .Select(assignment => BuildAssignmentSummary(
+                assignment,
+                studentSeeds,
+                cardsByDeck.GetValueOrDefault(assignment.DeckId) ?? [],
+                progressByStudentCard,
+                reviewsByAssignment.GetValueOrDefault(assignment.Id) ?? [],
+                cardById,
+                now,
+                recentSince))
+            .ToList();
+
+        students = studentSeeds
+            .Select(student => BuildStudentSummary(
+                student,
+                activeAssignments,
+                cardsByDeck,
+                progressByStudentCard,
+                reviewsByStudent.GetValueOrDefault(student.UserId) ?? [],
+                cardById,
+                assignmentById,
+                assignmentByDeckId,
+                now,
+                recentSince))
+            .ToList();
+
+        var recentReviews = reviews.Where(review => review.ReviewedAt >= recentSince).ToList();
+        var studentsNeedingAttention = students.Count(student => NeedsAttention(student, now, inactiveSince));
+        snapshot = new ClassroomSnapshot(
+            students.Count(student => student.LastReviewedAt is not null && student.LastReviewedAt.Value >= recentSince),
+            studentsNeedingAttention,
+            students.Sum(student => student.DueCardCount),
+            recentReviews.Count == 0 ? null : (int)Math.Round(recentReviews.Count(review => review.WasCorrect) * 100.0 / recentReviews.Count));
+
+        attentionItems = students
+            .Where(student => NeedsAttention(student, now, inactiveSince))
+            .Select(student => BuildAttentionItem(student, now, inactiveSince))
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.StudentName)
+            .Take(6)
+            .ToList();
     }
 
     private IQueryable<Classroom> GetTeacherClassroomQuery()
@@ -411,6 +612,235 @@ else
                     classroom.Memberships.Any(membership => membership.UserId == currentTeacher.Id &&
                         membership.Role == ClassroomMemberRole.Teacher &&
                         membership.Status == ClassroomMemberStatus.Approved)));
+    }
+
+    private static AssignmentSummary BuildAssignmentSummary(
+        AssignmentSeed assignment,
+        IReadOnlyList<StudentSeed> studentSeeds,
+        IReadOnlyList<CardSeed> cards,
+        IReadOnlyDictionary<(string UserId, Guid CardId), ProgressSeed> progressByStudentCard,
+        IReadOnlyList<ReviewSeed> reviews,
+        IReadOnlyDictionary<Guid, CardSeed> cardById,
+        DateTimeOffset now,
+        DateTimeOffset recentSince)
+    {
+        var startedStudents = 0;
+        var caughtUpStudents = 0;
+        var dueCards = 0;
+        var notStartedStudents = 0;
+        var cardIds = cards.Select(card => card.Id).ToList();
+
+        foreach (var student in studentSeeds)
+        {
+            var studentProgress = cardIds
+                .Select(cardId => progressByStudentCard.GetValueOrDefault((student.UserId, cardId)))
+                .Where(progress => progress is not null)
+                .ToList();
+            var studentReviews = reviews.Where(review => review.UserId == student.UserId).ToList();
+            var hasStarted = studentProgress.Count > 0 || studentReviews.Count > 0;
+            var studentDueCards = studentProgress.Count(progress => progress!.DueAt <= now);
+            var studentNewCards = cards.Count - studentProgress.Count;
+
+            if (hasStarted)
+            {
+                startedStudents++;
+            }
+            else
+            {
+                notStartedStudents++;
+            }
+
+            if (hasStarted && studentDueCards == 0 && studentNewCards == 0)
+            {
+                caughtUpStudents++;
+            }
+
+            dueCards += studentDueCards;
+        }
+
+        var recentReviews = reviews.Where(review => review.ReviewedAt >= recentSince).ToList();
+        var trickyCards = recentReviews
+            .GroupBy(review => review.CardId)
+            .Select(group => new
+            {
+                CardId = group.Key,
+                AttemptCount = group.Count(),
+                MissCount = group.Count(review => !review.WasCorrect),
+            })
+            .Where(card => card.MissCount > 0 && cardById.ContainsKey(card.CardId))
+            .OrderByDescending(card => card.MissCount)
+            .ThenByDescending(card => card.AttemptCount)
+            .Take(3)
+            .Select(card => new TrickyCard(CardPromptText(cardById[card.CardId]), card.MissCount))
+            .ToList();
+
+        return new AssignmentSummary(
+            assignment.Id,
+            assignment.DeckId,
+            assignment.DeckTitle,
+            assignment.CardCount,
+            assignment.IsActive,
+            startedStudents,
+            caughtUpStudents,
+            dueCards,
+            notStartedStudents,
+            recentReviews.Count,
+            recentReviews.Count(review => review.WasCorrect),
+            trickyCards);
+    }
+
+    private static StudentSummary BuildStudentSummary(
+        StudentSeed student,
+        IReadOnlyList<AssignmentSeed> activeAssignments,
+        IReadOnlyDictionary<Guid, List<CardSeed>> cardsByDeck,
+        IReadOnlyDictionary<(string UserId, Guid CardId), ProgressSeed> progressByStudentCard,
+        IReadOnlyList<ReviewSeed> reviews,
+        IReadOnlyDictionary<Guid, CardSeed> cardById,
+        IReadOnlyDictionary<Guid, AssignmentSeed> assignmentById,
+        IReadOnlyDictionary<Guid, AssignmentSeed> assignmentByDeckId,
+        DateTimeOffset now,
+        DateTimeOffset recentSince)
+    {
+        var dueCards = 0;
+        var newCards = 0;
+        var learningCards = 0;
+        var reviewCards = 0;
+        var activeDecksStarted = 0;
+
+        foreach (var assignment in activeAssignments)
+        {
+            var cards = cardsByDeck.GetValueOrDefault(assignment.DeckId) ?? [];
+            var cardIds = cards.Select(card => card.Id).ToList();
+            var progressEntries = cardIds
+                .Select(cardId => progressByStudentCard.GetValueOrDefault((student.UserId, cardId)))
+                .Where(progress => progress is not null)
+                .ToList();
+            var assignmentReviews = reviews.Where(review => review.DeckAssignmentId == assignment.Id).ToList();
+
+            if (progressEntries.Count > 0 || assignmentReviews.Count > 0)
+            {
+                activeDecksStarted++;
+            }
+
+            dueCards += progressEntries.Count(progress => progress!.DueAt <= now);
+            newCards += cards.Count - progressEntries.Count;
+            learningCards += progressEntries.Count(progress => !string.Equals(progress!.FsrsState, "Review", StringComparison.OrdinalIgnoreCase));
+            reviewCards += progressEntries.Count(progress => string.Equals(progress!.FsrsState, "Review", StringComparison.OrdinalIgnoreCase));
+        }
+
+        var recentReviews = reviews.Where(review => review.ReviewedAt >= recentSince).ToList();
+        var trickyCards = recentReviews
+            .Where(review => !review.WasCorrect && cardById.ContainsKey(review.CardId))
+            .GroupBy(review => review.CardId)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => CardPromptText(cardById[group.Key]))
+            .Take(3)
+            .Select(group =>
+            {
+                var card = cardById[group.Key];
+                var deckTitle = assignmentByDeckId.TryGetValue(card.DeckId, out var assignmentForDeck)
+                    ? assignmentForDeck.DeckTitle
+                    : assignmentById.GetValueOrDefault(group.First().DeckAssignmentId)?.DeckTitle;
+                return new TrickyCard(deckTitle is null ? CardPromptText(card) : $"{CardPromptText(card)} in {deckTitle}", group.Count());
+            })
+            .ToList();
+
+        return new StudentSummary(
+            student.UserId,
+            student.DisplayName,
+            student.UserName,
+            activeAssignments.Count,
+            activeDecksStarted,
+            dueCards,
+            newCards,
+            learningCards,
+            reviewCards,
+            recentReviews.Count,
+            recentReviews.Count(review => review.WasCorrect),
+            reviews.Select(review => (DateTimeOffset?)review.ReviewedAt).Max(),
+            trickyCards);
+    }
+
+    private static bool NeedsAttention(StudentSummary student, DateTimeOffset now, DateTimeOffset inactiveSince)
+    {
+        return student.ActiveDeckCount > 0 &&
+            (student.ActiveDecksStarted == 0 ||
+                student.DueCardCount >= 10 ||
+                student is { RecentAttempts: >= 5, RecentCorrectPercent: < 65 } ||
+                (student.DueCardCount > 0 && student.LastReviewedAt is not null && student.LastReviewedAt.Value < inactiveSince) ||
+                (student.LastReviewedAt is null && student.NewCardCount > 0));
+    }
+
+    private static AttentionItem BuildAttentionItem(StudentSummary student, DateTimeOffset now, DateTimeOffset inactiveSince)
+    {
+        if (student.ActiveDeckCount > 0 && student.ActiveDecksStarted == 0)
+        {
+            return new AttentionItem(student.DisplayName, "Not started", "Help this student launch their first active mission.", "warning", 0);
+        }
+
+        if (student.DueCardCount >= 10)
+        {
+            return new AttentionItem(student.DisplayName, "Due pileup", $"Has {student.DueCardCount} cards due now. A short practice block would help.", "warning", 1);
+        }
+
+        if (student is { RecentAttempts: >= 5, RecentCorrectPercent: < 65 })
+        {
+            var trickyText = student.TrickyCards.Count == 0
+                ? "recent cards"
+                : string.Join(", ", student.TrickyCards.Select(card => card.Prompt));
+            return new AttentionItem(student.DisplayName, "Low recent correct", $"Check understanding on {trickyText}.", "warning", 2);
+        }
+
+        if (student.LastReviewedAt is null)
+        {
+            return new AttentionItem(student.DisplayName, "No practice yet", "This student has active work but no practice history yet.", "warning", 3);
+        }
+
+        if (student.DueCardCount > 0 && student.LastReviewedAt.Value < inactiveSince)
+        {
+            return new AttentionItem(student.DisplayName, "Practice gap", $"Last practiced {LastPracticeText(student.LastReviewedAt)} and has due cards waiting.", "warning", 4);
+        }
+
+        return new AttentionItem(student.DisplayName, "Check in", "Review this student's active deck progress.", "warning", 5);
+    }
+
+    private static string CardPromptText(CardSeed card) => card.CardType == CardType.AudioPrompt
+        ? $"Spelling word #{card.SortOrder}"
+        : card.Front;
+
+    private static string PercentText(int? percent) => percent is null ? "-" : $"{percent}%";
+
+    private static string AccuracyText(int attempts, int correctCount)
+    {
+        if (attempts == 0)
+        {
+            return "No recent attempts";
+        }
+
+        return $"{Math.Round(correctCount * 100.0 / attempts):0}% recent correct";
+    }
+
+    private static string LastPracticeText(DateTimeOffset? reviewedAt)
+    {
+        if (reviewedAt is null)
+        {
+            return "Never";
+        }
+
+        var localReviewedAt = reviewedAt.Value.ToLocalTime();
+        var localNow = DateTimeOffset.Now;
+
+        if (localReviewedAt.Date == localNow.Date)
+        {
+            return $"Today at {localReviewedAt:t}";
+        }
+
+        if (localReviewedAt.Date == localNow.Date.AddDays(-1))
+        {
+            return $"Yesterday at {localReviewedAt:t}";
+        }
+
+        return localReviewedAt.ToString("MMM d 'at' h:mm tt", CultureInfo.CurrentCulture);
     }
 
     private async Task<string> GenerateStudentUserNameAsync(string joinCode, string displayName)
@@ -484,7 +914,63 @@ else
 
     private sealed record ClassroomDetails(Guid Id, string Name, string JoinCode, int StudentCount, int ActiveDeckCount);
     private sealed record DeckOption(Guid Id, string Title, int CardCount);
-    private sealed record AssignmentSummary(Guid Id, string DeckTitle, int CardCount, bool IsActive);
-    private sealed record StudentSummary(string DisplayName, string UserName);
+    private sealed record AssignmentSeed(Guid Id, Guid DeckId, string DeckTitle, int CardCount, bool IsActive);
+    private sealed record StudentSeed(string UserId, string DisplayName, string UserName);
+    private sealed record CardSeed(Guid Id, Guid DeckId, string Front, CardType CardType, int SortOrder);
+    private sealed record ProgressSeed(string UserId, Guid CardId, DateTimeOffset DueAt, int ReviewCount, int LapseCount, string FsrsState, DateTimeOffset? LastReviewedAt);
+    private sealed record ReviewSeed(string UserId, Guid CardId, Guid DeckAssignmentId, DateTimeOffset ReviewedAt, bool WasCorrect);
+    private sealed record ClassroomSnapshot(int PracticedThisWeek, int StudentsNeedingAttention, int DueCardsNow, int? RecentCorrectPercent);
+    private sealed record TrickyCard(string Prompt, int MissCount);
+    private sealed record AttentionItem(string StudentName, string Signal, string Suggestion, string SeverityClass, int SortOrder);
+    private sealed record AssignmentSummary(
+        Guid Id,
+        Guid DeckId,
+        string DeckTitle,
+        int CardCount,
+        bool IsActive,
+        int StartedStudentCount,
+        int CaughtUpStudentCount,
+        int DueCardCount,
+        int NotStartedStudentCount,
+        int RecentAttempts,
+        int RecentCorrectCount,
+        IReadOnlyList<TrickyCard> TrickyCards);
+    private sealed record StudentSummary(
+        string UserId,
+        string DisplayName,
+        string UserName,
+        int ActiveDeckCount,
+        int ActiveDecksStarted,
+        int DueCardCount,
+        int NewCardCount,
+        int LearningCardCount,
+        int ReviewCardCount,
+        int RecentAttempts,
+        int RecentCorrectCount,
+        DateTimeOffset? LastReviewedAt,
+        IReadOnlyList<TrickyCard> TrickyCards)
+    {
+        public int? RecentCorrectPercent => RecentAttempts == 0
+            ? null
+            : (int)Math.Round(RecentCorrectCount * 100.0 / RecentAttempts);
+
+        public string StatusText => ActiveDeckCount == 0
+            ? "No active decks"
+            : ActiveDecksStarted == 0
+                ? "Not started"
+                : DueCardCount > 0
+                    ? "Needs practice"
+                    : NewCardCount > 0
+                        ? "Ready for launch"
+                        : "Caught up";
+
+        public string StatusClass => StatusText switch
+        {
+            "Caught up" => "active",
+            "Needs practice" => "warning",
+            "Not started" => "warning",
+            _ => string.Empty,
+        };
+    }
     private sealed record CreatedCredential(string DisplayName, string UserName, string Password);
 }

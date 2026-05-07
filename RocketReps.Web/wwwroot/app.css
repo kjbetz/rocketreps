@@ -1240,6 +1240,94 @@ label:not([class]) {
     margin-top: 1.35rem;
 }
 
+.teacher-snapshot-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: var(--line);
+}
+
+.teacher-snapshot-grid div {
+    padding: 1rem;
+    background: var(--panel-muted);
+}
+
+.teacher-snapshot-grid strong,
+.teacher-snapshot-grid span {
+    display: block;
+}
+
+.teacher-snapshot-grid strong {
+    color: var(--primary-dark);
+    font-size: 1.6rem;
+}
+
+.teacher-snapshot-grid span {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.teacher-attention-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.teacher-attention-card,
+.teacher-empty-state {
+    border: 1px solid var(--line);
+}
+
+.teacher-attention-card {
+    padding: 1rem;
+    border-radius: 18px;
+    background: var(--panel);
+}
+
+.teacher-attention-card h3 {
+    margin: 0.7rem 0 0.35rem;
+}
+
+.teacher-attention-card p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.teacher-card-metrics,
+.teacher-tricky-list {
+    display: grid;
+    gap: 0.45rem;
+    margin-bottom: 1rem;
+}
+
+.teacher-card-metrics span,
+.teacher-tricky-list span {
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+
+.teacher-tricky-list {
+    padding: 0.75rem;
+    border-radius: 16px;
+    background: var(--panel);
+}
+
+.teacher-tricky-list strong {
+    color: var(--hero-text);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
 .classroom-card {
     display: flex;
     flex-direction: column;
@@ -1337,6 +1425,11 @@ label:not([class]) {
 .status-pill.active {
     background: rgba(17, 163, 106, 0.12);
     color: var(--success);
+}
+
+.status-pill.warning {
+    background: var(--warning-bg);
+    color: var(--warning-text);
 }
 
 .table-wrap {
@@ -1669,6 +1762,11 @@ label:not([class]) {
 
     .deck-details-stat-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .teacher-snapshot-grid,
+    .teacher-attention-list {
+        grid-template-columns: 1fr;
     }
 
     .deck-details-card-row {

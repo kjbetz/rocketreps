@@ -21,6 +21,7 @@
 - Demo mode is controlled by `Demo:Enabled`. When enabled, `/demo` exposes teacher and student demo launch buttons, startup seeds `demo.teacher`, 30 `demo.student##` accounts, two demo classrooms, and active demo assignments including `Spelling Lift-Off` and `California Facts`. Disable demo mode after temporary events unless explicitly requested otherwise.
 - Keep seeded stock decks programmatic unless there is a strong reason to move large content sets into migrations.
 - Current onboarding is teacher-first and classroom-first: teachers self-register, create classrooms from `/teacher`, then open a classroom workspace to generate student logins, assign decks, and toggle that classroom's deck assignments active/inactive.
+- The teacher classroom workspace should stay action-oriented: surface classroom snapshots, students needing attention, deck assignment progress, due/not-started/caught-up counts, recently tricky cards, and roster practice status from `StudentCardProgress` and `ReviewLog` without ranking students against each other.
 - When no explicit `ReturnUrl` is present, post-auth redirects should be role-aware: teachers land on `/teacher` and students land on `/student`.
 - Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting is needed.
 - The app intentionally uses custom CSS and should not use Bootstrap or a UI component library unless explicitly requested.

@@ -21,7 +21,7 @@ The app currently includes the foundation for the first vertical slice:
 - Teacher-focused registration that assigns the `Teacher` role.
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
 - `/teacher` classroom-first dashboard for classroom creation, classroom entry points, and deck library access.
-- `/teacher/classrooms/{id}` classroom workspace for student login generation, ready-made deck assignment, active/inactive deck toggles, and roster review.
+- `/teacher/classrooms/{id}` classroom workspace for student login generation, ready-made deck assignment, active/inactive deck toggles, classroom progress snapshots, teacher attention signals, deck-level progress summaries, and roster progress review.
 - `/student` dashboard that groups active classroom deck assignments into `Due Now`, `Ready For Launch`, and `All Caught Up` sections using due-card and new-card availability, with a per-deck mission details panel for status counts, attempts, correct totals, streaks, per-card status, and next due times.
 - `/student/review/{assignmentId}` flow that records right/wrong reviews, shows lifetime correct counts after correct answers, keeps the answer input focused between typed cards, uses mobile-friendly numeric input for math facts, supports shuffled multiple-choice cards, supports audio-prompt spelling cards with browser speech synthesis and a local voice picker, schedules cards with FSRS.Core, and updates student card progress.
 - Config-gated `/demo` launcher for open-house demos with seeded teacher, student, classroom, and deck assignment data.
@@ -43,7 +43,9 @@ The current teacher-first flow is:
 9. The app stores review history and schedules future reviews.
 10. Students see lightweight progress, due-card status, streaks, and next practice windows.
 
-Custom deck authoring and teacher-facing progress reports are natural next steps. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
+Custom deck authoring and deeper deck-first/student-first teacher progress drilldowns are natural next steps. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
+
+Teacher-facing classroom progress should stay action-oriented instead of ranking students. The classroom workspace currently surfaces a quick snapshot, students who may need attention, deck assignment signals such as started/caught-up/due/not-started counts, recently tricky cards, and roster-level practice status. These summaries are computed from `StudentCardProgress` and `ReviewLog` so teachers can quickly decide who needs help starting, who needs practice time, and which cards may need reteaching.
 
 For younger students, the first review model is binary: right or wrong. Internally this maps to scheduling-friendly ratings:
 
