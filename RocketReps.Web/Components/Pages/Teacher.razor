@@ -17,8 +17,8 @@
 
 <section class="page-hero compact">
     <p class="eyebrow">Teacher launchpad</p>
-    <h1>Build your classroom mission.</h1>
-    <p>Create classrooms, generate student logins, and activate ready-made decks when your class is ready to practice.</p>
+    <h1>Choose a classroom mission.</h1>
+    <p>Start with the classroom you want to manage, then add students, assign decks, and control what is active from that classroom workspace.</p>
 </section>
 
 @if (isLoading)
@@ -32,29 +32,11 @@ else
         <div class="notice @statusClass">@statusMessage</div>
     }
 
-    @if (createdCredential is not null)
-    {
-        <section class="content-card credential-card" aria-live="polite">
-            <p class="eyebrow">Student login created</p>
-            <h2>@createdCredential.DisplayName</h2>
-            <div class="credential-grid">
-                <div>
-                    <span>Username</span>
-                    <strong>@createdCredential.UserName</strong>
-                </div>
-                <div>
-                    <span>Password</span>
-                    <strong>@createdCredential.Password</strong>
-                </div>
-            </div>
-            <p class="status-muted">Passwords are shown once. Reset the student password later if this one is lost.</p>
-        </section>
-    }
-
     <div class="layout-grid dashboard-grid">
         <section class="layout-panel">
             <div class="content-card">
                 <h2>Create a classroom</h2>
+                <p class="status-muted">Create a workspace for a class, group, or intervention block.</p>
                 <EditForm Model="classroomInput" OnValidSubmit="CreateClassroomAsync">
                     <DataAnnotationsValidator />
                     <ValidationSummary class="status-danger" />
@@ -68,145 +50,50 @@ else
         </section>
 
         <section class="layout-panel">
-            <div class="content-card">
-                <h2>Create a student login</h2>
-                <EditForm Model="studentInput" OnValidSubmit="CreateStudentAsync">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary class="status-danger" />
-                    <div class="field-stack">
-                        <InputSelect @bind-Value="studentInput.ClassroomId" id="StudentClassroom" class="field-input">
-                            <option value="">Choose a classroom</option>
-                            @foreach (var classroom in classrooms)
-                            {
-                                <option value="@classroom.Id">@classroom.Name</option>
-                            }
-                        </InputSelect>
-                        <label for="StudentClassroom">Classroom</label>
-                    </div>
-                    <div class="field-stack">
-                        <InputText @bind-Value="studentInput.DisplayName" id="StudentDisplayName" class="field-input" placeholder="Aria M." />
-                        <label for="StudentDisplayName">Student display name</label>
-                    </div>
-                    <button type="submit" class="button-primary button-full" disabled="@(classrooms.Count == 0)">Generate login</button>
-                </EditForm>
-            </div>
-        </section>
-
-        <section class="layout-panel layout-panel-wide">
-            <div class="content-card">
-                <h2>Assign a ready-made deck</h2>
-                <EditForm Model="assignmentInput" OnValidSubmit="AssignDeckAsync">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary class="status-danger" />
-                    <div class="assignment-form-grid">
-                        <div class="field-stack">
-                            <InputSelect @bind-Value="assignmentInput.ClassroomId" id="AssignmentClassroom" class="field-input">
-                                <option value="">Choose a classroom</option>
-                                @foreach (var classroom in classrooms)
-                                {
-                                    <option value="@classroom.Id">@classroom.Name</option>
-                                }
-                            </InputSelect>
-                            <label for="AssignmentClassroom">Classroom</label>
-                        </div>
-                        <div class="field-stack">
-                            <InputSelect @bind-Value="assignmentInput.DeckId" id="AssignmentDeck" class="field-input">
-                                <option value="">Choose a deck</option>
-                                @foreach (var deck in decks)
-                                {
-                                    <option value="@deck.Id">@deck.Title (@deck.CardCount cards)</option>
-                                }
-                            </InputSelect>
-                            <label for="AssignmentDeck">Deck</label>
-                        </div>
-                        <label class="field-label assignment-active-toggle">
-                            <InputCheckbox @bind-Value="assignmentInput.IsActive" class="field-checkbox" />
-                            Active now
-                        </label>
-                    </div>
-                    <button type="submit" class="button-primary" disabled="@(classrooms.Count == 0 || decks.Count == 0)">Assign deck</button>
-                </EditForm>
+            <div class="content-card deck-library-card">
+                <p class="eyebrow">Deck library</p>
+                <h2>Manage reusable decks.</h2>
+                <p>Browse ready-made decks and keep custom deck work separate from classroom activation.</p>
+                <div class="classroom-stat-row">
+                    <span>@deckLibrary.StockDeckCount ready-made</span>
+                    <span>@deckLibrary.TeacherDeckCount custom</span>
+                </div>
+                <div class="card-actions">
+                    <a class="button-primary" href="decks">Manage decks</a>
+                </div>
             </div>
         </section>
     </div>
 
     <section class="dashboard-section">
-        <h2>Your classrooms</h2>
+        <div class="dashboard-section-header">
+            <div>
+                <p class="eyebrow">Classrooms</p>
+                <h2>Your classroom workspaces</h2>
+            </div>
+        </div>
         @if (classrooms.Count == 0)
         {
             <div class="content-card">Create your first classroom to start adding students and deck missions.</div>
         }
         else
         {
-            <div class="management-grid">
+            <div class="management-grid classroom-grid">
                 @foreach (var classroom in classrooms)
                 {
-                    <article class="management-card">
+                    <article class="management-card classroom-card">
                         <div class="management-card-header">
                             <h3>@classroom.Name</h3>
                             <span>@classroom.JoinCode</span>
                         </div>
-                        <p>@classroom.StudentCount students · @classroom.ActiveDeckCount active decks</p>
-                    </article>
-                }
-            </div>
-        }
-    </section>
-
-    <section class="dashboard-section">
-        <h2>Deck assignments</h2>
-        @if (assignments.Count == 0)
-        {
-            <div class="content-card">No decks assigned yet. Assign a ready-made deck above, then turn it active when students should work on it.</div>
-        }
-        else
-        {
-            <div class="management-grid">
-                @foreach (var assignment in assignments)
-                {
-                    <article class="management-card">
-                        <div class="management-card-header">
-                            <h3>@assignment.DeckTitle</h3>
-                            <span class="@(assignment.IsActive ? "status-pill active" : "status-pill")">@(assignment.IsActive ? "Active" : "Inactive")</span>
+                        <div class="classroom-stat-row">
+                            <span>@classroom.StudentCount students</span>
+                            <span>@classroom.ActiveDeckCount active decks</span>
+                            <span>@classroom.TotalDeckCount assigned</span>
                         </div>
-                        <p>@assignment.ClassroomName · @assignment.CardCount cards</p>
-                        <button type="button" class="button-secondary" @onclick="() => ToggleAssignmentAsync(assignment.Id)">
-                            @(assignment.IsActive ? "Turn off" : "Activate")
-                        </button>
+                        <a class="button-primary button-full" href="@($"teacher/classrooms/{classroom.Id}")">Open classroom</a>
                     </article>
                 }
-            </div>
-        }
-    </section>
-
-    <section class="dashboard-section">
-        <h2>Students</h2>
-        @if (students.Count == 0)
-        {
-            <div class="content-card">Student accounts you create will appear here with their usernames.</div>
-        }
-        else
-        {
-            <div class="table-wrap content-card">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Student</th>
-                            <th>Username</th>
-                            <th>Classroom</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var student in students)
-                        {
-                            <tr>
-                                <td>@student.DisplayName</td>
-                                <td>@student.UserName</td>
-                                <td>@student.ClassroomName</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
             </div>
         }
     </section>
@@ -214,18 +101,12 @@ else
 
 @code {
     private readonly ClassroomInput classroomInput = new();
-    private readonly StudentInput studentInput = new();
-    private readonly AssignmentInput assignmentInput = new() { IsActive = true };
-    private readonly string[] passwordWords = ["comet", "orbit", "lunar", "solar", "nova", "rocket", "star"];
     private ApplicationUser? currentTeacher;
     private bool isLoading = true;
     private string? statusMessage;
     private string statusClass = "notice-success";
-    private CreatedCredential? createdCredential;
     private List<ClassroomSummary> classrooms = [];
-    private List<DeckOption> decks = [];
-    private List<AssignmentSummary> assignments = [];
-    private List<StudentSummary> students = [];
+    private DeckLibrarySummary deckLibrary = new(0, 0);
 
     protected override async Task OnInitializedAsync()
     {
@@ -242,7 +123,6 @@ else
             return;
         }
 
-        createdCredential = null;
         var schoolId = await EnsureTeacherSchoolAsync();
         var classroom = new Classroom
         {
@@ -267,147 +147,7 @@ else
         DbContext.Classrooms.Add(classroom);
         await DbContext.SaveChangesAsync();
         classroomInput.Name = string.Empty;
-        SetStatus($"Created {classroom.Name}.");
-        await LoadDashboardAsync();
-    }
-
-    private async Task CreateStudentAsync()
-    {
-        if (currentTeacher is null || studentInput.ClassroomId is null)
-        {
-            return;
-        }
-
-        createdCredential = null;
-        var classroom = await GetTeacherClassroomQuery()
-            .SingleOrDefaultAsync(classroom => classroom.Id == studentInput.ClassroomId.Value);
-
-        if (classroom is null)
-        {
-            SetStatus("Choose one of your classrooms before creating a student.", "notice-danger");
-            return;
-        }
-
-        var displayName = studentInput.DisplayName.Trim();
-        var userName = await GenerateStudentUserNameAsync(classroom.JoinCode, displayName);
-        var password = GenerateStudentPassword();
-        var student = new ApplicationUser
-        {
-            UserName = userName,
-            DisplayName = displayName,
-            EmailConfirmed = true,
-            SchoolId = classroom.SchoolId,
-        };
-
-        var result = await UserManager.CreateAsync(student, password);
-        if (!result.Succeeded)
-        {
-            SetStatus(string.Join(" ", result.Errors.Select(error => error.Description)), "notice-danger");
-            return;
-        }
-
-        result = await UserManager.AddToRoleAsync(student, "Student");
-        if (!result.Succeeded)
-        {
-            SetStatus(string.Join(" ", result.Errors.Select(error => error.Description)), "notice-danger");
-            return;
-        }
-
-        DbContext.ClassroomMemberships.Add(new ClassroomMembership
-        {
-            Id = Guid.NewGuid(),
-            ClassroomId = classroom.Id,
-            UserId = student.Id,
-            Role = ClassroomMemberRole.Student,
-            Status = ClassroomMemberStatus.Approved,
-            ApprovedAt = DateTimeOffset.UtcNow,
-            ApprovedByTeacherId = currentTeacher.Id,
-        });
-
-        await DbContext.SaveChangesAsync();
-        studentInput.DisplayName = string.Empty;
-        createdCredential = new CreatedCredential(displayName, userName, password);
-        SetStatus($"Created login for {displayName}.");
-        await LoadDashboardAsync();
-    }
-
-    private async Task AssignDeckAsync()
-    {
-        if (currentTeacher is null || assignmentInput.ClassroomId is null || assignmentInput.DeckId is null)
-        {
-            return;
-        }
-
-        createdCredential = null;
-        var classroom = await GetTeacherClassroomQuery()
-            .SingleOrDefaultAsync(classroom => classroom.Id == assignmentInput.ClassroomId.Value);
-
-        if (classroom is null)
-        {
-            SetStatus("Choose one of your classrooms before assigning a deck.", "notice-danger");
-            return;
-        }
-
-        var deckExists = await DbContext.Decks.AnyAsync(deck => deck.Id == assignmentInput.DeckId.Value && deck.IsPublished);
-        if (!deckExists)
-        {
-            SetStatus("Choose a published deck before assigning it.", "notice-danger");
-            return;
-        }
-
-        var assignment = await DbContext.DeckAssignments
-            .FirstOrDefaultAsync(existingAssignment => existingAssignment.ClassroomId == classroom.Id && existingAssignment.DeckId == assignmentInput.DeckId.Value);
-
-        if (assignment is null)
-        {
-            assignment = new DeckAssignment
-            {
-                Id = Guid.NewGuid(),
-                ClassroomId = classroom.Id,
-                DeckId = assignmentInput.DeckId.Value,
-                AssignedByTeacherId = currentTeacher.Id,
-                IsActive = assignmentInput.IsActive,
-                IsOpenStudyAllowed = true,
-            };
-
-            DbContext.DeckAssignments.Add(assignment);
-        }
-        else
-        {
-            assignment.IsActive = assignmentInput.IsActive;
-        }
-
-        await DbContext.SaveChangesAsync();
-        SetStatus(assignmentInput.IsActive ? "Deck assigned and activated." : "Deck assigned as inactive.");
-        await LoadDashboardAsync();
-    }
-
-    private async Task ToggleAssignmentAsync(Guid assignmentId)
-    {
-        if (currentTeacher is null)
-        {
-            return;
-        }
-
-        createdCredential = null;
-        var assignment = await DbContext.DeckAssignments
-            .Include(assignment => assignment.Classroom)
-            .SingleOrDefaultAsync(assignment => assignment.Id == assignmentId &&
-                assignment.Classroom != null &&
-                (assignment.Classroom.CreatedByTeacherId == currentTeacher.Id ||
-                    assignment.Classroom.Memberships.Any(membership => membership.UserId == currentTeacher.Id &&
-                        membership.Role == ClassroomMemberRole.Teacher &&
-                        membership.Status == ClassroomMemberStatus.Approved)));
-
-        if (assignment is null)
-        {
-            SetStatus("Assignment not found for your classroom.", "notice-danger");
-            return;
-        }
-
-        assignment.IsActive = !assignment.IsActive;
-        await DbContext.SaveChangesAsync();
-        SetStatus(assignment.IsActive ? "Deck activated." : "Deck turned off.");
+        SetStatus($"Created {classroom.Name}. Open it to add students and decks.");
         await LoadDashboardAsync();
     }
 
@@ -425,47 +165,15 @@ else
                 classroom.Name,
                 classroom.JoinCode,
                 classroom.Memberships.Count(membership => membership.Role == ClassroomMemberRole.Student && membership.Status == ClassroomMemberStatus.Approved),
-                classroom.Assignments.Count(assignment => assignment.IsActive)))
+                classroom.Assignments.Count(assignment => assignment.IsActive),
+                classroom.Assignments.Count))
             .ToListAsync();
 
-        decks = await DbContext.Decks
-            .Where(deck => deck.IsPublished && (deck.IsGlobalStock || deck.OwnerTeacherId == currentTeacher.Id))
-            .OrderBy(deck => deck.Title)
-            .Select(deck => new DeckOption(deck.Id, deck.Title, deck.Cards.Count))
-            .ToListAsync();
-
-        assignments = await DbContext.DeckAssignments
-            .Where(assignment => assignment.Classroom != null &&
-                (assignment.Classroom.CreatedByTeacherId == currentTeacher.Id ||
-                    assignment.Classroom.Memberships.Any(membership => membership.UserId == currentTeacher.Id &&
-                        membership.Role == ClassroomMemberRole.Teacher &&
-                        membership.Status == ClassroomMemberStatus.Approved)))
-            .OrderBy(assignment => assignment.Classroom!.Name)
-            .ThenBy(assignment => assignment.Deck!.Title)
-            .Select(assignment => new AssignmentSummary(
-                assignment.Id,
-                assignment.ClassroomId,
-                assignment.Classroom!.Name,
-                assignment.Deck!.Title,
-                assignment.Deck.Cards.Count,
-                assignment.IsActive))
-            .ToListAsync();
-
-        students = await DbContext.ClassroomMemberships
-            .Where(membership => membership.Role == ClassroomMemberRole.Student &&
-                membership.Status == ClassroomMemberStatus.Approved &&
-                membership.Classroom != null &&
-                (membership.Classroom.CreatedByTeacherId == currentTeacher.Id ||
-                    membership.Classroom.Memberships.Any(teacherMembership => teacherMembership.UserId == currentTeacher.Id &&
-                        teacherMembership.Role == ClassroomMemberRole.Teacher &&
-                        teacherMembership.Status == ClassroomMemberStatus.Approved)))
-            .OrderBy(membership => membership.Classroom!.Name)
-            .ThenBy(membership => membership.User!.DisplayName)
-            .Select(membership => new StudentSummary(
-                membership.User!.DisplayName ?? membership.User.UserName ?? "Student",
-                membership.User.UserName ?? "",
-                membership.Classroom!.Name))
-            .ToListAsync();
+        var stockDeckCount = await DbContext.Decks
+            .CountAsync(deck => deck.IsPublished && deck.IsGlobalStock);
+        var teacherDeckCount = await DbContext.Decks
+            .CountAsync(deck => deck.IsPublished && deck.OwnerTeacherId == currentTeacher.Id);
+        deckLibrary = new DeckLibrarySummary(stockDeckCount, teacherDeckCount);
     }
 
     private IQueryable<Classroom> GetTeacherClassroomQuery()
@@ -522,54 +230,6 @@ else
         }
     }
 
-    private async Task<string> GenerateStudentUserNameAsync(string joinCode, string displayName)
-    {
-        var slug = Slugify($"{joinCode}-{displayName}");
-        if (slug.Length > 32)
-        {
-            slug = slug[..32].Trim('-');
-        }
-
-        for (var suffix = 0; suffix < 100; suffix++)
-        {
-            var candidate = suffix == 0 ? slug : $"{slug}-{suffix}";
-            if (await UserManager.FindByNameAsync(candidate) is null)
-            {
-                return candidate;
-            }
-        }
-
-        return $"{slug}-{RandomNumberGenerator.GetInt32(1000, 9999)}";
-    }
-
-    private string GenerateStudentPassword()
-    {
-        var word = passwordWords[RandomNumberGenerator.GetInt32(passwordWords.Length)];
-        return $"Rocket-{RandomNumberGenerator.GetInt32(10, 99)}-{word}";
-    }
-
-    private static string Slugify(string value)
-    {
-        var builder = new StringBuilder(value.Length);
-        var previousWasDash = false;
-
-        foreach (var character in value.ToLowerInvariant())
-        {
-            if (char.IsLetterOrDigit(character))
-            {
-                builder.Append(character);
-                previousWasDash = false;
-            }
-            else if (!previousWasDash)
-            {
-                builder.Append('-');
-                previousWasDash = true;
-            }
-        }
-
-        return builder.ToString().Trim('-');
-    }
-
     private void SetStatus(string message, string cssClass = "notice-success")
     {
         statusMessage = message;
@@ -583,30 +243,6 @@ else
         public string Name { get; set; } = string.Empty;
     }
 
-    private sealed class StudentInput
-    {
-        [Required]
-        public Guid? ClassroomId { get; set; }
-
-        [Required]
-        [StringLength(160, MinimumLength = 2)]
-        public string DisplayName { get; set; } = string.Empty;
-    }
-
-    private sealed class AssignmentInput
-    {
-        [Required]
-        public Guid? ClassroomId { get; set; }
-
-        [Required]
-        public Guid? DeckId { get; set; }
-
-        public bool IsActive { get; set; }
-    }
-
-    private sealed record ClassroomSummary(Guid Id, string Name, string JoinCode, int StudentCount, int ActiveDeckCount);
-    private sealed record DeckOption(Guid Id, string Title, int CardCount);
-    private sealed record AssignmentSummary(Guid Id, Guid ClassroomId, string ClassroomName, string DeckTitle, int CardCount, bool IsActive);
-    private sealed record StudentSummary(string DisplayName, string UserName, string ClassroomName);
-    private sealed record CreatedCredential(string DisplayName, string UserName, string Password);
+    private sealed record ClassroomSummary(Guid Id, string Name, string JoinCode, int StudentCount, int ActiveDeckCount, int TotalDeckCount);
+    private sealed record DeckLibrarySummary(int StockDeckCount, int TeacherDeckCount);
 }

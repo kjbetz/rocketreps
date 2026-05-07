@@ -1034,6 +1034,65 @@ label:not([class]) {
     letter-spacing: -0.03em;
 }
 
+.dashboard-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: end;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.dashboard-section-header h2 {
+    margin-bottom: 0;
+    color: var(--hero-text);
+    letter-spacing: -0.03em;
+}
+
+.classroom-hero .button-secondary {
+    margin-bottom: 1rem;
+}
+
+.deck-library-card .card-actions,
+.card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+}
+
+.classroom-stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin: 1rem 0;
+}
+
+.classroom-stat-row span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.85rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    font-size: 0.78rem;
+    font-weight: 900;
+}
+
+.hero-stat-row {
+    margin-top: 1.35rem;
+}
+
+.classroom-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.classroom-card .button-full {
+    margin-top: auto;
+}
+
 .assignment-form-grid,
 .credential-grid,
 .management-grid {

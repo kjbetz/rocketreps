@@ -20,7 +20,8 @@ The app currently includes the foundation for the first vertical slice:
 - `/decks` page that lists ready-made classroom decks.
 - Teacher-focused registration that assigns the `Teacher` role.
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
-- `/teacher` dashboard for classroom creation, student login generation, ready-made deck assignment, and active/inactive deck toggles.
+- `/teacher` classroom-first dashboard for classroom creation, classroom entry points, and deck library access.
+- `/teacher/classrooms/{id}` classroom workspace for student login generation, ready-made deck assignment, active/inactive deck toggles, and roster review.
 - `/student` dashboard that groups active classroom deck assignments into `Due Now`, `Ready For Launch`, and `All Caught Up` sections using due-card and new-card availability, with a per-deck mission details panel for status counts, attempts, correct totals, streaks, per-card status, and next due times.
 - `/student/review/{assignmentId}` flow that records right/wrong reviews, shows lifetime correct counts after correct answers, keeps the answer input focused between typed cards, uses mobile-friendly numeric input for math facts, supports shuffled multiple-choice cards, supports audio-prompt spelling cards with browser speech synthesis and a local voice picker, schedules cards with FSRS.Core, and updates student card progress.
 - Config-gated `/demo` launcher for open-house demos with seeded teacher, student, classroom, and deck assignment data.
@@ -32,14 +33,15 @@ The app currently includes the foundation for the first vertical slice:
 The current teacher-first flow is:
 
 1. Teacher signs up with email and creates or joins a school/workspace.
-2. Teacher creates a classroom.
-3. Teacher generates student usernames and simple passwords.
-4. Teacher assigns ready-made decks to a classroom.
-5. Teacher marks deck assignments active when students should work on them.
-6. Student logs in with username and password, no student email required.
-7. Student studies active assigned cards using a simple right/wrong interaction.
-8. The app stores review history and schedules future reviews.
-9. Students see lightweight progress, due-card status, streaks, and next practice windows.
+2. Teacher creates a classroom from `/teacher`.
+3. Teacher opens the classroom workspace.
+4. Teacher generates student usernames and simple passwords inside that classroom.
+5. Teacher assigns ready-made decks to the classroom.
+6. Teacher marks classroom deck assignments active when students should work on them.
+7. Student logs in with username and password, no student email required.
+8. Student studies active assigned cards using a simple right/wrong interaction.
+9. The app stores review history and schedules future reviews.
+10. Students see lightweight progress, due-card status, streaks, and next practice windows.
 
 Custom deck authoring and teacher-facing progress reports are natural next steps. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
 
@@ -146,10 +148,11 @@ To exercise the current vertical slice locally:
 1. Register a teacher at `/Account/Register`.
 2. Confirm the teacher account from the Postmark-delivered confirmation email.
 3. Open `/teacher` and create a classroom.
-4. Generate a student login and save the displayed username/password.
-5. Assign a ready-made deck to the classroom and leave it active, or activate it from the assignment card.
-6. Log out and log in with the generated student username/password; the student should land on `/student`.
-7. Start the active deck mission.
+4. Open the classroom workspace from the classroom card.
+5. Generate a student login and save the displayed username/password.
+6. Assign a ready-made deck to the classroom and leave it active, or activate it from the assignment card.
+7. Log out and log in with the generated student username/password; the student should land on `/student`.
+8. Start the active deck mission.
 
 ## Seed Data
 
