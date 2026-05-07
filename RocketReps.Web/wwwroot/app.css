@@ -393,7 +393,8 @@ textarea {
 }
 
 .feature-grid,
-.deck-grid {
+.deck-grid,
+.pricing-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
@@ -402,6 +403,7 @@ textarea {
 
 .feature-card,
 .deck-card,
+.pricing-card,
 .loading-card,
 .account-card,
 .content-card {
@@ -414,6 +416,7 @@ textarea {
 
 .feature-card,
 .deck-card,
+.pricing-card,
 .loading-card,
 .content-card {
     padding: 1.35rem;
@@ -435,6 +438,159 @@ textarea {
 
 .feature-card p,
 .deck-card p {
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.pricing-hero {
+    text-align: center;
+}
+
+.pricing-hero h1,
+.pricing-hero p {
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.pricing-grid {
+    align-items: stretch;
+}
+
+.pricing-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    overflow: hidden;
+}
+
+.pricing-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 0.4rem;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+
+.pricing-card-recommended {
+    border-color: rgba(91, 95, 246, 0.42);
+    background: linear-gradient(160deg, var(--panel), var(--panel-muted));
+    transform: translateY(-0.55rem);
+}
+
+.recommended-badge {
+    align-self: flex-start;
+    margin-top: 0.25rem;
+    padding: 0.32rem 0.72rem;
+    border-radius: 999px;
+    color: var(--primary-dark);
+    background: var(--primary-soft);
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.pricing-card-header {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.pricing-plan-name,
+.pricing-price,
+.pricing-tagline {
+    margin: 0;
+}
+
+.pricing-plan-name {
+    color: var(--primary-dark);
+    font-size: 1rem;
+    font-weight: 1000;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.pricing-price {
+    color: var(--hero-text);
+    font-size: clamp(2.6rem, 5vw, 4.3rem);
+    font-weight: 1000;
+    letter-spacing: -0.08em;
+    line-height: 0.9;
+}
+
+.pricing-price span {
+    margin-left: 0.25rem;
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+}
+
+.pricing-tagline {
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.pricing-feature-list {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0;
+    color: var(--text);
+    list-style: none;
+}
+
+.pricing-feature-list li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: start;
+    color: var(--muted);
+    font-weight: 750;
+    line-height: 1.4;
+}
+
+.pricing-feature-list li::before {
+    content: "✓";
+    display: inline-grid;
+    place-items: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    color: white;
+    background: linear-gradient(135deg, var(--success), var(--accent-strong));
+    font-size: 0.72rem;
+    font-weight: 1000;
+}
+
+.pricing-card .button-full {
+    margin-top: auto;
+}
+
+.schools-pricing-card {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: clamp(1.35rem, 4vw, 2rem);
+    border: 1px solid var(--line);
+    border-radius: calc(var(--radius) + 8px);
+    background: linear-gradient(135deg, var(--primary-soft), var(--accent-soft)), var(--panel);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+}
+
+.schools-pricing-card h2 {
+    margin-bottom: 0.55rem;
+    color: var(--hero-text);
+    font-size: clamp(1.65rem, 4vw, 2.7rem);
+    letter-spacing: -0.06em;
+}
+
+.schools-pricing-card p:not(.eyebrow) {
+    max-width: 46rem;
+    margin-bottom: 0;
     color: var(--muted);
     line-height: 1.6;
 }
@@ -1496,10 +1652,15 @@ label:not([class]) {
     .hero-section,
     .feature-grid,
     .deck-grid,
+    .pricing-grid,
     .demo-login-grid,
     .management-grid,
     .credential-grid {
         grid-template-columns: 1fr;
+    }
+
+    .pricing-card-recommended {
+        transform: none;
     }
 
     .mission-stat-grid {
