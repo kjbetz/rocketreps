@@ -18,6 +18,7 @@ The app currently includes the foundation for the first vertical slice:
 - Custom Rocket Reps landing page and responsive navigation using custom CSS instead of Bootstrap.
 - Light/dark/system theme preference from a compact icon button in the top bar.
 - `/decks` page that lists ready-made classroom decks.
+- `/pricing` page with teacher self-service Free, Pro, and Pro+ plan cards plus a school/district contact section.
 - Teacher-focused registration that assigns the `Teacher` role.
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
 - `/teacher` classroom-first dashboard for classroom creation, classroom entry points, and deck library access.
@@ -43,7 +44,7 @@ The current teacher-first flow is:
 9. The app stores review history and schedules future reviews.
 10. Students see lightweight progress, due-card status, streaks, and next practice windows.
 
-Custom deck authoring and deeper deck-first/student-first teacher progress drilldowns are natural next steps. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
+Custom deck authoring, plan enforcement, checkout, and deeper deck-first/student-first teacher progress drilldowns are natural next steps. The current `/pricing` page is informational: teacher plan CTAs route to registration, and school/district pricing is a contact-us prompt. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
 
 Teacher-facing classroom progress should stay action-oriented instead of ranking students. The classroom workspace currently surfaces a quick snapshot, students who may need attention, deck assignment signals such as started/caught-up/due/not-started counts, recently tricky cards, and roster-level practice status. These summaries are computed from `StudentCardProgress` and `ReviewLog` so teachers can quickly decide who needs help starting, who needs practice time, and which cards may need reteaching.
 
