@@ -1,0 +1,690 @@
+@page "/teacher/decks/{DeckId:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Teacher")]
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using RocketReps.Web.Data
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>@(deck?.Title ?? "Teacher Deck")</PageTitle>
+
+@if (isLoading)
+{
+    <div class="loading-card">Loading deck workspace...</div>
+}
+else if (deck is null)
+{
+    <section class="page-hero compact">
+        <p class="eyebrow">Teacher deck</p>
+        <h1>Deck not found.</h1>
+        <p>This deck may not exist, or you may not have access to manage it.</p>
+        <a class="button-primary" href="teacher/decks">Back to teacher decks</a>
+    </section>
+}
+else
+{
+    <section class="page-hero compact classroom-hero">
+        <a class="button-secondary" href="teacher/decks">Back to decks</a>
+        <p class="eyebrow">Deck workspace</p>
+        <h1>@deck.Title</h1>
+        <p>Edit deck details, publish when ready, and manage the cards students will practice.</p>
+        <div class="classroom-stat-row hero-stat-row">
+            <span>@deck.Subject</span>
+            <span>@deck.GradeBand</span>
+            <span>@CardCountText(cards.Count)</span>
+            <span>@(deck.IsPublished ? "Published" : "Draft")</span>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="notice @statusClass">@statusMessage</div>
+    }
+
+    <div class="layout-grid dashboard-grid">
+        <section class="layout-panel layout-panel-wide">
+            <div class="content-card">
+                <h2>Deck details</h2>
+                <p class="status-muted">Published custom decks appear in classroom assignment lists.</p>
+                <EditForm Model="deckInput" OnValidSubmit="SaveDeckAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="status-danger" />
+                    <div class="field-stack">
+                        <InputText @bind-Value="deckInput.Title" id="DeckTitle" class="field-input" />
+                        <label for="DeckTitle">Deck title</label>
+                    </div>
+                    <div class="field-stack">
+                        <InputTextArea @bind-Value="deckInput.Description" id="DeckDescription" class="field-input deck-textarea" />
+                        <label for="DeckDescription">Description</label>
+                    </div>
+                    <div class="deck-form-grid">
+                        <div class="field-stack">
+                            <InputText @bind-Value="deckInput.Subject" id="DeckSubject" class="field-input" />
+                            <label for="DeckSubject">Subject</label>
+                        </div>
+                        <div class="field-stack">
+                            <InputText @bind-Value="deckInput.GradeBand" id="DeckGradeBand" class="field-input" />
+                            <label for="DeckGradeBand">Grade band</label>
+                        </div>
+                    </div>
+                    <label class="field-label deck-toggle-row">
+                        <InputCheckbox @bind-Value="deckInput.IsPublished" class="field-checkbox" />
+                        Published and assignable
+                    </label>
+                    <button type="submit" class="button-primary button-full">Save deck</button>
+                </EditForm>
+            </div>
+        </section>
+    </div>
+
+    <section class="dashboard-section" aria-labelledby="DeckCardsTitle">
+        <div class="dashboard-section-header">
+            <div>
+                <p class="eyebrow">Card manifest</p>
+                <h2 id="DeckCardsTitle">Cards</h2>
+            </div>
+            <button type="button" class="button-primary" @onclick="OpenAddCardDialog">Add card</button>
+        </div>
+        @if (cards.Count == 0)
+        {
+            <div class="content-card">No cards yet. Add the first card, then publish this deck when it is ready for classroom assignments.</div>
+        }
+        else
+        {
+            <div class="table-wrap content-card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Prompt</th>
+                            <th>Type</th>
+                            <th>Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var card in cards)
+                        {
+                            <tr>
+                                <td>@card.Prompt</td>
+                                <td>@CardTypeLabel(card.CardType)</td>
+                                <td>@card.Back</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button type="button" class="button-secondary" @onclick="() => OpenPreviewDialog(card.Id)">Preview</button>
+                                        <button type="button" class="button-secondary" @onclick="() => OpenEditCardDialog(card.Id)">Edit</button>
+                                        <button type="button" class="button-danger" @onclick="() => DeleteCardAsync(card.Id)">Delete</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    @if (isCardDialogOpen)
+    {
+        <div class="modal-backdrop" @onclick="CloseCardDialog">
+            <section class="modal-dialog card-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="CardEditorTitle" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <div>
+                        <p class="eyebrow">Card editor</p>
+                        <h2 id="CardEditorTitle">@(cardInput.EditingCardId is null ? "Add card" : "Edit card")</h2>
+                    </div>
+                    <button type="button" class="deck-details-close" @onclick="CloseCardDialog" aria-label="Close card editor">Close</button>
+                </div>
+                <p class="status-muted">Use the same card types students already see in review missions.</p>
+                <EditForm Model="cardInput" OnValidSubmit="SaveCardAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="status-danger" />
+                    <div class="field-stack">
+                        <InputSelect @bind-Value="cardInput.CardType" id="CardType" class="field-input">
+                            @foreach (var option in CardTypeOptions)
+                            {
+                                <option value="@option.Value">@option.Label</option>
+                            }
+                        </InputSelect>
+                        <label for="CardType">Card type</label>
+                    </div>
+                    <div class="field-stack">
+                        <InputTextArea @bind-Value="cardInput.Front" id="CardFront" class="field-input deck-textarea" placeholder="What is 7 x 8?" />
+                        <label for="CardFront">Prompt</label>
+                    </div>
+                    <div class="field-stack">
+                        <InputText @bind-Value="cardInput.Back" id="CardBack" class="field-input" placeholder="56" />
+                        <label for="CardBack">Answer shown after review</label>
+                    </div>
+                    <div class="field-stack">
+                        <InputText @bind-Value="cardInput.CorrectAnswer" id="CardCorrectAnswer" class="field-input" placeholder="Leave blank to use the answer above" />
+                        <label for="CardCorrectAnswer">Accepted answer</label>
+                    </div>
+                    @if (cardInput.CardType == CardType.MultipleChoice)
+                    {
+                        <div class="field-stack">
+                            <InputTextArea @bind-Value="cardInput.ChoicesText" id="CardChoices" class="field-input deck-textarea" placeholder="56&#10;54&#10;48&#10;64" />
+                            <label for="CardChoices">Choices, one per line</label>
+                        </div>
+                    }
+                    <p class="status-muted deck-card-help">@CardTypeHelpText</p>
+                    <div class="modal-actions">
+                        <button type="submit" class="button-primary">@(cardInput.EditingCardId is null ? "Add card" : "Save card")</button>
+                        <button type="button" class="button-secondary" @onclick="CloseCardDialog">Cancel</button>
+                    </div>
+                </EditForm>
+            </section>
+        </div>
+    }
+
+    @if (previewCard is not null)
+    {
+        <div class="modal-backdrop" @onclick="ClosePreviewDialog">
+            <section class="modal-dialog card-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="CardPreviewTitle" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <div>
+                        <p class="eyebrow">Student preview</p>
+                        <h2 id="CardPreviewTitle">@CardTypeLabel(previewCard.CardType)</h2>
+                    </div>
+                    <button type="button" class="deck-details-close" @onclick="ClosePreviewDialog" aria-label="Close card preview">Close</button>
+                </div>
+
+                <article class="card-preview-shell">
+                    @if (previewCard.CardType == CardType.AudioPrompt)
+                    {
+                        <p class="eyebrow">Listen</p>
+                        <div class="audio-prompt-card preview-audio-card" aria-label="Audio prompt preview">
+                            <button type="button" class="audio-prompt-button" disabled>Hear word</button>
+                            <p class="status-muted">Students tap the button, then spell the word they hear.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="eyebrow">Question</p>
+                        <h3>@previewCard.Front</h3>
+                    }
+
+                    @if (previewCard.CardType == CardType.MultipleChoice)
+                    {
+                        var choices = PreviewChoices(previewCard);
+                        @if (choices.Count == 0)
+                        {
+                            <p class="status-danger">This multiple-choice card has no choices yet.</p>
+                        }
+                        else
+                        {
+                            <div class="choice-grid preview-choice-grid" role="group" aria-label="Preview answer choices">
+                                @foreach (var choice in choices)
+                                {
+                                    <button type="button" class="choice-button" disabled>@choice</button>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="field-stack preview-answer-field">
+                            <input class="field-input review-answer" disabled value="Student types here" />
+                            <label>Student answer</label>
+                        </div>
+                    }
+
+                    <div class="preview-answer-card">
+                        <span>Accepted answer</span>
+                        <strong>@(previewCard.CorrectAnswer ?? previewCard.Back)</strong>
+                    </div>
+                </article>
+
+                <div class="modal-actions">
+                    <button type="button" class="button-secondary" @onclick="ClosePreviewDialog">Close preview</button>
+                    <button type="button" class="button-primary" @onclick="() => OpenEditFromPreview(previewCard.Id)">Edit this card</button>
+                </div>
+            </section>
+        </div>
+    }
+}
+
+@code {
+    private static readonly CardTypeOption[] CardTypeOptions =
+    [
+        new(CardType.Flashcard, "Typed flashcard"),
+        new(CardType.MathFact, "Math fact"),
+        new(CardType.MultipleChoice, "Multiple choice"),
+        new(CardType.AudioPrompt, "Audio spelling"),
+    ];
+
+    [Parameter]
+    public Guid DeckId { get; set; }
+
+    private readonly DeckInput deckInput = new();
+    private readonly CardInput cardInput = new();
+    private ApplicationUser? currentTeacher;
+    private TeacherDeckDetails? deck;
+    private bool isLoading = true;
+    private bool isCardDialogOpen;
+    private CardSummary? previewCard;
+    private string? statusMessage;
+    private string statusClass = "notice-success";
+    private List<CardSummary> cards = [];
+
+    private string CardTypeHelpText => cardInput.CardType switch
+    {
+        CardType.MathFact => "Math fact cards use a numeric keyboard on mobile and compare the accepted answer exactly.",
+        CardType.MultipleChoice => "Multiple-choice cards render large answer buttons. Include the accepted answer in the choices.",
+        CardType.AudioPrompt => "Audio spelling cards speak the accepted answer. Use the prompt for teacher context, such as Listen and spell the word.",
+        _ => "Typed flashcards ask students to type the accepted answer before seeing feedback.",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentTeacher = await UserManager.GetUserAsync(authState.User);
+        await LoadDeckAsync();
+        isLoading = false;
+    }
+
+    private async Task SaveDeckAsync()
+    {
+        if (currentTeacher is null || deck is null)
+        {
+            return;
+        }
+
+        if (deckInput.IsPublished && cards.Count == 0)
+        {
+            SetStatus("Add at least one card before publishing this deck.", "notice-warning");
+            return;
+        }
+
+        DbContext.ChangeTracker.Clear();
+        var deckEntity = await DbContext.Decks.SingleOrDefaultAsync(existingDeck => existingDeck.Id == DeckId && existingDeck.OwnerTeacherId == currentTeacher.Id);
+        if (deckEntity is null)
+        {
+            SetStatus("Deck not found.", "notice-danger");
+            return;
+        }
+
+        deckEntity.Title = deckInput.Title.Trim();
+        deckEntity.Description = deckInput.Description.Trim();
+        deckEntity.Subject = deckInput.Subject.Trim();
+        deckEntity.GradeBand = deckInput.GradeBand.Trim();
+        deckEntity.IsPublished = deckInput.IsPublished;
+        try
+        {
+            await DbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            SetStatus("This deck changed while you were editing. Reloaded the latest version.", "notice-warning");
+            await LoadDeckAsync();
+            return;
+        }
+
+        SetStatus("Saved deck details.");
+        await LoadDeckAsync();
+    }
+
+    private async Task SaveCardAsync()
+    {
+        if (currentTeacher is null || deck is null)
+        {
+            return;
+        }
+
+        DbContext.ChangeTracker.Clear();
+        var deckExists = await DbContext.Decks.AnyAsync(existingDeck => existingDeck.Id == DeckId && existingDeck.OwnerTeacherId == currentTeacher.Id);
+        if (!deckExists)
+        {
+            SetStatus("Deck not found.", "notice-danger");
+            return;
+        }
+
+        var front = cardInput.Front.Trim();
+        var back = cardInput.Back.Trim();
+        var correctAnswer = string.IsNullOrWhiteSpace(cardInput.CorrectAnswer)
+            ? back
+            : cardInput.CorrectAnswer.Trim();
+        var choices = ParseChoices(cardInput.ChoicesText);
+
+        if (cardInput.CardType == CardType.MultipleChoice)
+        {
+            if (choices.Count < 2)
+            {
+                SetStatus("Add at least two choices for a multiple-choice card.", "notice-warning");
+                return;
+            }
+
+            if (!choices.Any(choice => string.Equals(choice, correctAnswer, StringComparison.OrdinalIgnoreCase)))
+            {
+                SetStatus("Include the accepted answer in the multiple-choice choices.", "notice-warning");
+                return;
+            }
+        }
+
+        Card card;
+        if (cardInput.EditingCardId is { } cardId)
+        {
+            var existingCard = await DbContext.Cards.SingleOrDefaultAsync(existingCard => existingCard.Id == cardId &&
+                existingCard.DeckId == DeckId &&
+                existingCard.Deck != null &&
+                existingCard.Deck.OwnerTeacherId == currentTeacher.Id);
+            if (existingCard is null)
+            {
+                SetStatus("Card not found in this deck.", "notice-danger");
+                return;
+            }
+
+            card = existingCard;
+        }
+        else
+        {
+            var nextSortOrder = await DbContext.Cards
+                .Where(existingCard => existingCard.DeckId == DeckId)
+                .Select(existingCard => (int?)existingCard.SortOrder)
+                .MaxAsync() + 1 ?? 1;
+            card = new Card
+            {
+                Id = Guid.NewGuid(),
+                DeckId = DeckId,
+                Front = front,
+                Back = back,
+                CorrectAnswer = correctAnswer,
+                CardType = cardInput.CardType,
+                SortOrder = nextSortOrder,
+            };
+            DbContext.Cards.Add(card);
+        }
+
+        card.Front = front;
+        card.Back = back;
+        card.CorrectAnswer = correctAnswer;
+        card.CardType = cardInput.CardType;
+        card.ChoicesJson = cardInput.CardType == CardType.MultipleChoice ? JsonSerializer.Serialize(choices) : null;
+
+        try
+        {
+            await DbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            SetStatus("This card changed while you were editing. Reloaded the latest version.", "notice-warning");
+            cardInput.Reset();
+            isCardDialogOpen = false;
+            await LoadDeckAsync();
+            return;
+        }
+
+        SetStatus(cardInput.EditingCardId is null ? "Added card." : "Saved card.");
+        cardInput.Reset();
+        isCardDialogOpen = false;
+        await LoadDeckAsync();
+    }
+
+    private void OpenAddCardDialog()
+    {
+        cardInput.Reset();
+        isCardDialogOpen = true;
+    }
+
+    private void OpenEditCardDialog(Guid cardId)
+    {
+        var card = cards.SingleOrDefault(existingCard => existingCard.Id == cardId);
+        if (card is null)
+        {
+            return;
+        }
+
+        cardInput.EditingCardId = card.Id;
+        cardInput.CardType = card.CardType;
+        cardInput.Front = card.Front;
+        cardInput.Back = card.Back;
+        cardInput.CorrectAnswer = card.CorrectAnswer ?? string.Empty;
+        cardInput.ChoicesText = ChoicesText(card.ChoicesJson);
+        isCardDialogOpen = true;
+    }
+
+    private void CloseCardDialog()
+    {
+        cardInput.Reset();
+        isCardDialogOpen = false;
+    }
+
+    private void OpenPreviewDialog(Guid cardId)
+    {
+        previewCard = cards.SingleOrDefault(card => card.Id == cardId);
+        isCardDialogOpen = false;
+    }
+
+    private void ClosePreviewDialog()
+    {
+        previewCard = null;
+    }
+
+    private void OpenEditFromPreview(Guid cardId)
+    {
+        previewCard = null;
+        OpenEditCardDialog(cardId);
+    }
+
+    private async Task DeleteCardAsync(Guid cardId)
+    {
+        if (currentTeacher is null || deck is null)
+        {
+            return;
+        }
+
+        DbContext.ChangeTracker.Clear();
+        var card = await DbContext.Cards
+            .Include(existingCard => existingCard.Deck)
+            .SingleOrDefaultAsync(existingCard => existingCard.Id == cardId &&
+                existingCard.DeckId == DeckId &&
+                existingCard.Deck != null &&
+                existingCard.Deck.OwnerTeacherId == currentTeacher.Id);
+        if (card is null)
+        {
+            SetStatus("Card not found.", "notice-danger");
+            return;
+        }
+
+        var hasPracticeHistory = await DbContext.StudentCardProgress.AnyAsync(progress => progress.CardId == card.Id) ||
+            await DbContext.ReviewLogs.AnyAsync(review => review.CardId == card.Id);
+        if (hasPracticeHistory)
+        {
+            SetStatus("This card already has student practice history, so it cannot be deleted.", "notice-warning");
+            return;
+        }
+
+        DbContext.Cards.Remove(card);
+        try
+        {
+            await DbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            SetStatus("This card changed while you were deleting it. Reloaded the latest version.", "notice-warning");
+            await LoadDeckAsync();
+            return;
+        }
+
+        await ResequenceCardsAsync(DeckId);
+        SetStatus("Deleted card.");
+        cardInput.Reset();
+        await LoadDeckAsync();
+    }
+
+    private async Task ResequenceCardsAsync(Guid deckId)
+    {
+        var deckCards = await DbContext.Cards
+            .Where(card => card.DeckId == deckId)
+            .OrderBy(card => card.SortOrder)
+            .ThenBy(card => card.Id)
+            .ToListAsync();
+        for (var index = 0; index < deckCards.Count; index++)
+        {
+            deckCards[index].SortOrder = index + 1;
+        }
+
+        await DbContext.SaveChangesAsync();
+    }
+
+    private async Task LoadDeckAsync()
+    {
+        if (currentTeacher is null)
+        {
+            return;
+        }
+
+        deck = await DbContext.Decks
+            .Where(existingDeck => existingDeck.Id == DeckId && existingDeck.OwnerTeacherId == currentTeacher.Id)
+            .Select(existingDeck => new TeacherDeckDetails(
+                existingDeck.Id,
+                existingDeck.Title,
+                existingDeck.Description,
+                existingDeck.Subject,
+                existingDeck.GradeBand,
+                existingDeck.IsPublished))
+            .SingleOrDefaultAsync();
+
+        if (deck is null)
+        {
+            cards = [];
+            return;
+        }
+
+        deckInput.Title = deck.Title;
+        deckInput.Description = deck.Description;
+        deckInput.Subject = deck.Subject;
+        deckInput.GradeBand = deck.GradeBand;
+        deckInput.IsPublished = deck.IsPublished;
+
+        cards = await DbContext.Cards
+            .Where(card => card.DeckId == DeckId)
+            .OrderBy(card => card.SortOrder)
+            .ThenBy(card => card.Id)
+            .Select(card => new CardSummary(
+                card.Id,
+                card.Front,
+                card.Back,
+                card.CorrectAnswer,
+                card.CardType,
+                card.ChoicesJson,
+                card.SortOrder))
+            .ToListAsync();
+    }
+
+    private static List<string> ParseChoices(string choicesText) => choicesText
+        .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private static string ChoicesText(string? choicesJson)
+    {
+        if (string.IsNullOrWhiteSpace(choicesJson))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            var choices = JsonSerializer.Deserialize<List<string>>(choicesJson) ?? [];
+            return string.Join(Environment.NewLine, choices);
+        }
+        catch (JsonException)
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string CardCountText(int cardCount) => cardCount == 1 ? "1 card" : $"{cardCount} cards";
+
+    private static string CardTypeLabel(CardType cardType) => CardTypeOptions.FirstOrDefault(option => option.Value == cardType)?.Label ?? cardType.ToString();
+
+    private static IReadOnlyList<string> PreviewChoices(CardSummary card)
+    {
+        if (string.IsNullOrWhiteSpace(card.ChoicesJson))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(card.ChoicesJson)?
+                .Where(choice => !string.IsNullOrWhiteSpace(choice))
+                .ToList() ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private void SetStatus(string message, string cssClass = "notice-success")
+    {
+        statusMessage = message;
+        statusClass = cssClass;
+    }
+
+    private sealed class DeckInput
+    {
+        [Required]
+        [StringLength(180, MinimumLength = 2)]
+        public string Title { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(600, MinimumLength = 4)]
+        public string Description { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(80, MinimumLength = 2)]
+        public string Subject { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(80, MinimumLength = 2)]
+        public string GradeBand { get; set; } = string.Empty;
+
+        public bool IsPublished { get; set; }
+    }
+
+    private sealed class CardInput
+    {
+        public Guid? EditingCardId { get; set; }
+
+        public CardType CardType { get; set; } = CardType.Flashcard;
+
+        [Required]
+        [StringLength(1_000, MinimumLength = 1)]
+        public string Front { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(1_000, MinimumLength = 1)]
+        public string Back { get; set; } = string.Empty;
+
+        [StringLength(500)]
+        public string CorrectAnswer { get; set; } = string.Empty;
+
+        [StringLength(2_000)]
+        public string ChoicesText { get; set; } = string.Empty;
+
+        public void Reset()
+        {
+            EditingCardId = null;
+            CardType = CardType.Flashcard;
+            Front = string.Empty;
+            Back = string.Empty;
+            CorrectAnswer = string.Empty;
+            ChoicesText = string.Empty;
+        }
+    }
+
+    private sealed record CardTypeOption(CardType Value, string Label);
+    private sealed record TeacherDeckDetails(Guid Id, string Title, string Description, string Subject, string GradeBand, bool IsPublished);
+    private sealed record CardSummary(Guid Id, string Front, string Back, string? CorrectAnswer, CardType CardType, string? ChoicesJson, int SortOrder)
+    {
+        public string Prompt => CardType == CardType.AudioPrompt ? $"Spelling word #{SortOrder}" : Front;
+    }
+}

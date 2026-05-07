@@ -1,0 +1,259 @@
+@page "/teacher/decks"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Teacher")]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using RocketReps.Web.Data
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager Navigation
+
+<PageTitle>Teacher Decks</PageTitle>
+
+<section class="page-hero compact">
+    <a class="button-secondary" href="teacher">Back to launchpad</a>
+    <p class="eyebrow">Teacher decks</p>
+    <h1>Build reusable practice missions.</h1>
+    <p>Create custom decks here, then open a deck workspace to add cards before assigning it to a classroom.</p>
+</section>
+
+@if (isLoading)
+{
+    <div class="loading-card">Loading teacher decks...</div>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="notice @statusClass">@statusMessage</div>
+    }
+
+    <div class="layout-grid dashboard-grid">
+        <section class="layout-panel">
+            <div class="content-card">
+                <h2>Create a custom deck</h2>
+                <p class="status-muted">Start with deck details. Add cards from the deck workspace next.</p>
+                <EditForm Model="deckInput" OnValidSubmit="CreateDeckAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="status-danger" />
+                    <div class="field-stack">
+                        <InputText @bind-Value="deckInput.Title" id="DeckTitle" class="field-input" placeholder="Fractions Launch" />
+                        <label for="DeckTitle">Deck title</label>
+                    </div>
+                    <div class="field-stack">
+                        <InputTextArea @bind-Value="deckInput.Description" id="DeckDescription" class="field-input deck-textarea" placeholder="Practice equivalent fractions and simple comparisons." />
+                        <label for="DeckDescription">Description</label>
+                    </div>
+                    <div class="deck-form-grid">
+                        <div class="field-stack">
+                            <InputText @bind-Value="deckInput.Subject" id="DeckSubject" class="field-input" placeholder="Math" />
+                            <label for="DeckSubject">Subject</label>
+                        </div>
+                        <div class="field-stack">
+                            <InputText @bind-Value="deckInput.GradeBand" id="DeckGradeBand" class="field-input" placeholder="Elementary" />
+                            <label for="DeckGradeBand">Grade band</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="button-primary button-full">Create deck</button>
+                </EditForm>
+            </div>
+        </section>
+
+        <section class="layout-panel">
+            <div class="content-card deck-library-card">
+                <p class="eyebrow">Ready-made</p>
+                <h2>Stock decks still live in the public library.</h2>
+                <p>Use the public deck library to preview ready-made decks. Assign stock and published custom decks from each classroom workspace.</p>
+                <div class="classroom-stat-row">
+                    <span>@stockDeckCount ready-made</span>
+                    <span>@publishedTeacherDeckCount custom published</span>
+                    <span>@draftTeacherDeckCount drafts</span>
+                </div>
+                <div class="card-actions">
+                    <a class="button-secondary" href="decks">View stock decks</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <section class="dashboard-section" aria-labelledby="TeacherDecksTitle">
+        <div class="dashboard-section-header">
+            <div>
+                <p class="eyebrow">Your decks</p>
+                <h2 id="TeacherDecksTitle">Your decks</h2>
+            </div>
+        </div>
+        @if (teacherDecks.Count == 0)
+        {
+            <div class="content-card">Create your first custom deck to start adding cards for your classroom missions.</div>
+        }
+        else
+        {
+            <div class="management-grid">
+                @foreach (var deck in teacherDecks)
+                {
+                    <article class="management-card">
+                        <div class="management-card-header">
+                            <h3>@deck.Title</h3>
+                            <span class="@(deck.IsPublished ? "status-pill active" : "status-pill")">@deck.StatusText</span>
+                        </div>
+                        <p>@deck.Description</p>
+                        <div class="classroom-stat-row">
+                            <span>@deck.Subject</span>
+                            <span>@deck.GradeBand</span>
+                            <span>@CardCountText(deck.CardCount)</span>
+                        </div>
+                        <div class="card-actions">
+                            <a class="button-primary" href="@($"teacher/decks/{deck.Id}")">Open deck</a>
+                            <button type="button" class="button-secondary" @onclick="() => TogglePublishAsync(deck.Id)">@(deck.IsPublished ? "Unpublish" : "Publish")</button>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private readonly DeckInput deckInput = new();
+    private ApplicationUser? currentTeacher;
+    private bool isLoading = true;
+    private string? statusMessage;
+    private string statusClass = "notice-success";
+    private int stockDeckCount;
+    private int publishedTeacherDeckCount;
+    private int draftTeacherDeckCount;
+    private List<TeacherDeckSummary> teacherDecks = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentTeacher = await UserManager.GetUserAsync(authState.User);
+        await LoadDecksAsync();
+        isLoading = false;
+    }
+
+    private async Task CreateDeckAsync()
+    {
+        if (currentTeacher is null)
+        {
+            return;
+        }
+
+        var deck = new Deck
+        {
+            Id = Guid.NewGuid(),
+            SchoolId = currentTeacher.SchoolId,
+            OwnerTeacherId = currentTeacher.Id,
+            Title = deckInput.Title.Trim(),
+            Description = deckInput.Description.Trim(),
+            Subject = deckInput.Subject.Trim(),
+            GradeBand = deckInput.GradeBand.Trim(),
+            IsGlobalStock = false,
+            IsPublished = false,
+        };
+
+        DbContext.Decks.Add(deck);
+        await DbContext.SaveChangesAsync();
+        Navigation.NavigateTo($"teacher/decks/{deck.Id}");
+    }
+
+    private async Task TogglePublishAsync(Guid deckId)
+    {
+        if (currentTeacher is null)
+        {
+            return;
+        }
+
+        DbContext.ChangeTracker.Clear();
+        var deck = await DbContext.Decks
+            .Include(existingDeck => existingDeck.Cards)
+            .SingleOrDefaultAsync(existingDeck => existingDeck.Id == deckId && existingDeck.OwnerTeacherId == currentTeacher.Id);
+        if (deck is null)
+        {
+            SetStatus("Deck not found.", "notice-danger");
+            return;
+        }
+
+        if (!deck.IsPublished && deck.Cards.Count == 0)
+        {
+            SetStatus("Add at least one card before publishing this deck.", "notice-warning");
+            return;
+        }
+
+        deck.IsPublished = !deck.IsPublished;
+        try
+        {
+            await DbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            SetStatus("This deck changed while you were editing. Reloaded the latest version.", "notice-warning");
+            await LoadDecksAsync();
+            return;
+        }
+
+        SetStatus(deck.IsPublished ? "Deck published and ready to assign." : "Deck unpublished. Existing assignments remain, but it will not appear for new assignments.");
+        await LoadDecksAsync();
+    }
+
+    private async Task LoadDecksAsync()
+    {
+        if (currentTeacher is null)
+        {
+            return;
+        }
+
+        stockDeckCount = await DbContext.Decks.CountAsync(deck => deck.IsGlobalStock && deck.IsPublished);
+        publishedTeacherDeckCount = await DbContext.Decks.CountAsync(deck => deck.OwnerTeacherId == currentTeacher.Id && deck.IsPublished);
+        draftTeacherDeckCount = await DbContext.Decks.CountAsync(deck => deck.OwnerTeacherId == currentTeacher.Id && !deck.IsPublished);
+        teacherDecks = await DbContext.Decks
+            .Where(deck => deck.OwnerTeacherId == currentTeacher.Id)
+            .OrderBy(deck => deck.Title)
+            .Select(deck => new TeacherDeckSummary(
+                deck.Id,
+                deck.Title,
+                deck.Description,
+                deck.Subject,
+                deck.GradeBand,
+                deck.IsPublished,
+                deck.Cards.Count))
+            .ToListAsync();
+    }
+
+    private static string CardCountText(int cardCount) => cardCount == 1 ? "1 card" : $"{cardCount} cards";
+
+    private void SetStatus(string message, string cssClass = "notice-success")
+    {
+        statusMessage = message;
+        statusClass = cssClass;
+    }
+
+    private sealed class DeckInput
+    {
+        [Required]
+        [StringLength(180, MinimumLength = 2)]
+        public string Title { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(600, MinimumLength = 4)]
+        public string Description { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(80, MinimumLength = 2)]
+        public string Subject { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(80, MinimumLength = 2)]
+        public string GradeBand { get; set; } = string.Empty;
+    }
+
+    private sealed record TeacherDeckSummary(Guid Id, string Title, string Description, string Subject, string GradeBand, bool IsPublished, int CardCount)
+    {
+        public string StatusText => IsPublished ? "Published" : "Draft";
+    }
+}

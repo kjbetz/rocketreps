@@ -1,4 +1,4 @@
-﻿@page "/decks"
+@page "/decks"
 @attribute [StreamRendering]
 @using Microsoft.EntityFrameworkCore
 @using RocketReps.Web.Data
@@ -24,7 +24,7 @@ else
             <article class="deck-card">
                 <div class="deck-card-header">
                     <span>@deck.Subject</span>
-                    <strong>@deck.CardCount cards</strong>
+                    <strong>@CardCountText(deck.CardCount)</strong>
                 </div>
                 <h2>@deck.Title</h2>
                 <p>@deck.Description</p>
@@ -53,6 +53,8 @@ else
                 deck.Cards.Count))
             .ToListAsync();
     }
+
+    private static string CardCountText(int cardCount) => cardCount == 1 ? "1 card" : $"{cardCount} cards";
 
     private sealed record DeckSummary(string Title, string Description, string Subject, string GradeBand, int CardCount);
 }

@@ -18,6 +18,8 @@ The app currently includes the foundation for the first vertical slice:
 - Custom Rocket Reps landing page and responsive navigation using custom CSS instead of Bootstrap.
 - Light/dark/system theme preference from a compact icon button in the top bar.
 - `/decks` page that lists ready-made classroom decks.
+- `/teacher/decks` teacher deck library for creating custom teacher-owned decks, publishing/unpublishing them, and opening deck workspaces.
+- `/teacher/decks/{id}` deck workspace for editing custom deck details, adding/editing/deleting cards, and previewing cards before assigning them.
 - `/pricing` page with teacher self-service Free, Pro, and Pro+ plan cards plus a school/district contact section.
 - Teacher-focused registration that assigns the `Teacher` role.
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
@@ -37,14 +39,17 @@ The current teacher-first flow is:
 2. Teacher creates a classroom from `/teacher`.
 3. Teacher opens the classroom workspace.
 4. Teacher generates student usernames and simple passwords inside that classroom.
-5. Teacher assigns ready-made decks to the classroom.
-6. Teacher marks classroom deck assignments active when students should work on them.
-7. Student logs in with username and password, no student email required.
-8. Student studies active assigned cards using a simple right/wrong interaction.
-9. The app stores review history and schedules future reviews.
-10. Students see lightweight progress, due-card status, streaks, and next practice windows.
+5. Teacher creates optional custom decks from `/teacher/decks` and publishes them when ready.
+6. Teacher assigns ready-made or published custom decks to the classroom.
+7. Teacher marks classroom deck assignments active when students should work on them.
+8. Student logs in with username and password, no student email required.
+9. Student studies active assigned cards using a simple right/wrong interaction.
+10. The app stores review history and schedules future reviews.
+11. Students see lightweight progress, due-card status, streaks, and next practice windows.
 
-Custom deck authoring, plan enforcement, checkout, and deeper deck-first/student-first teacher progress drilldowns are natural next steps. The current `/pricing` page is informational: teacher plan CTAs route to registration, and school/district pricing is a contact-us prompt. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
+Bulk deck import, card reordering, stock-deck copying, plan enforcement, checkout, and deeper deck-first/student-first teacher progress drilldowns are natural next steps. The current `/pricing` page is informational: teacher plan CTAs route to registration, and school/district pricing is a contact-us prompt. Admin functionality is intentionally deferred until school-level teacher management, billing, rostering, or reporting becomes necessary. The current workflow supports individual teacher usage first while keeping room for school/district administration later.
+
+Teacher-created custom decks are owned by the teacher through `Deck.OwnerTeacherId`. Draft decks are editable but not assignable; published custom decks appear alongside ready-made decks in classroom assignment flows. Card authoring currently supports typed flashcards, math facts, multiple choice cards with `ChoicesJson`, and audio-prompt spelling cards. Card preview is read-only and is intended for teacher verification, not scheduling or student progress simulation.
 
 Teacher-facing classroom progress should stay action-oriented instead of ranking students. The classroom workspace currently surfaces a quick snapshot, students who may need attention, deck assignment signals such as started/caught-up/due/not-started counts, recently tricky cards, and roster-level practice status. These summaries are computed from `StudentCardProgress` and `ReviewLog` so teachers can quickly decide who needs help starting, who needs practice time, and which cards may need reteaching.
 
@@ -153,9 +158,10 @@ To exercise the current vertical slice locally:
 3. Open `/teacher` and create a classroom.
 4. Open the classroom workspace from the classroom card.
 5. Generate a student login and save the displayed username/password.
-6. Assign a ready-made deck to the classroom and leave it active, or activate it from the assignment card.
-7. Log out and log in with the generated student username/password; the student should land on `/student`.
-8. Start the active deck mission.
+6. Optionally open `/teacher/decks`, create a custom deck, add cards from the deck workspace, preview a card, and publish the deck.
+7. Assign a ready-made or published custom deck to the classroom and leave it active, or activate it from the assignment card.
+8. Log out and log in with the generated student username/password; the student should land on `/student`.
+9. Start the active deck mission.
 
 ## Seed Data
 
