@@ -1,6 +1,7 @@
 @page "/student"
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Student")]
+@using System.Globalization
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
@@ -91,12 +92,102 @@ else
     </div>
 }
 
+@if (selectedAssignment is not null)
+{
+    <div class="deck-details-backdrop" @onclick="CloseDeckDetails">
+        <section class="deck-details-panel" role="dialog" aria-modal="true" aria-labelledby="DeckDetailsTitle" @onclick:stopPropagation="true">
+            <div class="deck-details-header">
+                <div>
+                    <p class="eyebrow">Mission details</p>
+                    <h2 id="DeckDetailsTitle">@selectedAssignment.DeckTitle</h2>
+                    <p class="status-muted">@selectedAssignment.Description</p>
+                </div>
+                <button type="button" class="deck-details-close" @onclick="CloseDeckDetails" aria-label="Close deck details">Close</button>
+            </div>
+
+            @if (isLoadingDetails)
+            {
+                <div class="loading-card deck-details-loading">Loading mission details...</div>
+            }
+            else if (selectedDeckDetails is not null)
+            {
+                <div class="deck-details-next">
+                    <strong>@selectedDeckDetails.NextPracticeText</strong>
+                    <span>Next practice window</span>
+                </div>
+
+                <div class="deck-details-stat-grid" aria-label="Deck progress summary">
+                    <div>
+                        <strong>@selectedDeckDetails.NewCardCount</strong>
+                        <span>New</span>
+                    </div>
+                    <div>
+                        <strong>@selectedDeckDetails.LearningCardCount</strong>
+                        <span>Learning</span>
+                    </div>
+                    <div>
+                        <strong>@selectedDeckDetails.ReviewCardCount</strong>
+                        <span>Review</span>
+                    </div>
+                    <div>
+                        <strong>@selectedDeckDetails.AttemptCount</strong>
+                        <span>Attempts</span>
+                    </div>
+                    <div>
+                        <strong>@selectedDeckDetails.CorrectCount</strong>
+                        <span>Correct</span>
+                    </div>
+                    <div>
+                        <strong>@selectedDeckDetails.CurrentStreak</strong>
+                        <span>Streak</span>
+                    </div>
+                </div>
+
+                <div class="deck-details-actions">
+                    @if (selectedAssignment.HasCardsToPractice)
+                    {
+                        <a class="button-primary" href="student/review/@selectedAssignment.AssignmentId">@selectedAssignment.ActionText</a>
+                    }
+                    <button type="button" class="button-secondary" @onclick="CloseDeckDetails">Back to missions</button>
+                </div>
+
+                <section class="deck-details-card-list" aria-labelledby="DeckDetailsCardsTitle">
+                    <div class="deck-details-card-list-header">
+                        <h3 id="DeckDetailsCardsTitle">Mission Cards</h3>
+                        <span>@CardCountText(selectedDeckDetails.Cards.Count)</span>
+                    </div>
+                    <div class="deck-details-card-rows">
+                        @foreach (var card in selectedDeckDetails.Cards)
+                        {
+                            <article class="deck-details-card-row">
+                                <div>
+                                    <strong>@card.Prompt</strong>
+                                    <span>@card.Status</span>
+                                </div>
+                                <div class="deck-details-card-metrics">
+                                    <span>@CountText(card.AttemptCount, "attempt")</span>
+                                    <span>@CorrectText(card.CorrectCount)</span>
+                                    <span>@CardDueText(card)</span>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </section>
+            }
+        </section>
+    </div>
+}
+
 @code {
     private bool isLoading = true;
+    private bool isLoadingDetails;
+    private string? currentStudentId;
     private List<StudentAssignment> assignments = [];
     private List<StudentAssignment> dueAssignments = [];
     private List<StudentAssignment> readyAssignments = [];
     private List<StudentAssignment> caughtUpAssignments = [];
+    private StudentAssignment? selectedAssignment;
+    private DeckDetails? selectedDeckDetails;
 
     protected override async Task OnInitializedAsync()
     {
@@ -105,6 +196,7 @@ else
 
         if (student is not null)
         {
+            currentStudentId = student.Id;
             var now = DateTimeOffset.UtcNow;
 
             assignments = await DbContext.DeckAssignments
@@ -117,6 +209,7 @@ else
                 .ThenBy(assignment => assignment.Deck!.Title)
                 .Select(assignment => new StudentAssignment(
                     assignment.Id,
+                    assignment.DeckId,
                     assignment.Classroom!.Name,
                     assignment.Deck!.Title,
                     assignment.Deck.Description,
@@ -165,6 +258,7 @@ else
             <span>@assignment.Subject</span>
             <strong>@assignment.StatusText</strong>
         </div>
+        <button type="button" class="deck-details-trigger" @onclick="() => ShowDeckDetailsAsync(assignment)" aria-label="View details for @assignment.DeckTitle" title="Mission details">i</button>
         <h2>@assignment.DeckTitle</h2>
         <p>@assignment.Description</p>
         <div class="deck-meta">
@@ -184,8 +278,158 @@ else
 
     private static string CardCountText(int cardCount) => cardCount == 1 ? "1 card" : $"{cardCount} cards";
 
+    private async Task ShowDeckDetailsAsync(StudentAssignment assignment)
+    {
+        if (currentStudentId is null)
+        {
+            return;
+        }
+
+        selectedAssignment = assignment;
+        selectedDeckDetails = null;
+        isLoadingDetails = true;
+
+        try
+        {
+            selectedDeckDetails = await LoadDeckDetailsAsync(assignment, currentStudentId);
+        }
+        finally
+        {
+            isLoadingDetails = false;
+        }
+    }
+
+    private void CloseDeckDetails()
+    {
+        selectedAssignment = null;
+        selectedDeckDetails = null;
+        isLoadingDetails = false;
+    }
+
+    private async Task<DeckDetails> LoadDeckDetailsAsync(StudentAssignment assignment, string studentId)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var cards = await DbContext.Cards
+            .Where(card => card.DeckId == assignment.DeckId)
+            .OrderBy(card => card.SortOrder)
+            .ThenBy(card => card.Id)
+            .Select(card => new DeckCardSeed(card.Id, card.Front, card.CardType, card.SortOrder))
+            .ToListAsync();
+
+        var cardIds = cards.Select(card => card.Id).ToList();
+        var progressEntries = await DbContext.StudentCardProgress
+            .Where(progress => progress.UserId == studentId && cardIds.Contains(progress.CardId))
+            .Select(progress => new ProgressDetails(
+                progress.CardId,
+                progress.DueAt,
+                progress.ReviewCount,
+                progress.LapseCount,
+                progress.FsrsState))
+            .ToListAsync();
+
+        var recentReviews = await DbContext.ReviewLogs
+            .Where(review => review.UserId == studentId && review.DeckAssignmentId == assignment.AssignmentId)
+            .OrderByDescending(review => review.ReviewedAt)
+            .Select(review => review.WasCorrect)
+            .ToListAsync();
+
+        var progressByCardId = progressEntries.ToDictionary(progress => progress.CardId);
+        var detailCards = cards
+            .Select(card => BuildDeckDetailCard(card, progressByCardId.GetValueOrDefault(card.Id), now))
+            .ToList();
+
+        var newCardCount = detailCards.Count(card => card.Status == "New");
+        var learningCardCount = detailCards.Count(card => card.Status == "Learning");
+        var reviewCardCount = detailCards.Count(card => card.Status == "Review");
+        var futureDueAt = progressEntries
+            .Where(progress => progress.DueAt > now)
+            .Select(progress => (DateTimeOffset?)progress.DueAt)
+            .Min();
+
+        return new DeckDetails(
+            newCardCount,
+            learningCardCount,
+            reviewCardCount,
+            progressEntries.Sum(progress => progress.ReviewCount),
+            progressEntries.Sum(progress => Math.Max(0, progress.ReviewCount - progress.LapseCount)),
+            recentReviews.TakeWhile(wasCorrect => wasCorrect).Count(),
+            NextPracticeText(assignment.DueCardCount, newCardCount, futureDueAt),
+            detailCards);
+    }
+
+    private static DeckDetailCard BuildDeckDetailCard(DeckCardSeed card, ProgressDetails? progress, DateTimeOffset now)
+    {
+        if (progress is null)
+        {
+            return new DeckDetailCard(CardPromptText(card), "New", 0, 0, null, false);
+        }
+
+        var status = string.Equals(progress.FsrsState, "Review", StringComparison.OrdinalIgnoreCase) ? "Review" : "Learning";
+        return new DeckDetailCard(
+            CardPromptText(card),
+            status,
+            progress.ReviewCount,
+            Math.Max(0, progress.ReviewCount - progress.LapseCount),
+            progress.DueAt,
+            progress.DueAt <= now);
+    }
+
+    private static string CardPromptText(DeckCardSeed card) => card.CardType == CardType.AudioPrompt
+        ? $"Spelling word #{card.SortOrder}"
+        : card.Front;
+
+    private static string NextPracticeText(int dueCardCount, int newCardCount, DateTimeOffset? futureDueAt)
+    {
+        if (dueCardCount > 0 || newCardCount > 0)
+        {
+            return "Ready now";
+        }
+
+        return futureDueAt is null
+            ? "No practice window scheduled yet"
+            : $"All caught up until {FormatDueTime(futureDueAt.Value)}";
+    }
+
+    private static string CardDueText(DeckDetailCard card)
+    {
+        if (card.Status == "New")
+        {
+            return "Ready now";
+        }
+
+        if (card.IsDue)
+        {
+            return "Due now";
+        }
+
+        return card.DueAt is null ? "Not scheduled" : $"Due {FormatDueTime(card.DueAt.Value)}";
+    }
+
+    private static string FormatDueTime(DateTimeOffset dueAt)
+    {
+        var localDueAt = dueAt.ToLocalTime();
+        var localNow = DateTimeOffset.Now;
+
+        if (localDueAt.Date == localNow.Date)
+        {
+            return $"today at {localDueAt:t}";
+        }
+
+        if (localDueAt.Date == localNow.Date.AddDays(1))
+        {
+            return $"tomorrow at {localDueAt:t}";
+        }
+
+        return localDueAt.ToString("MMM d 'at' h:mm tt", CultureInfo.CurrentCulture);
+    }
+
+    private static string CountText(int count, string label) => count == 1 ? $"1 {label}" : $"{count} {label}s";
+
+    private static string CorrectText(int count) => count == 1 ? "1 correct" : $"{count} correct";
+
     private sealed record StudentAssignment(
         Guid AssignmentId,
+        Guid DeckId,
         string ClassroomName,
         string DeckTitle,
         string Description,
@@ -214,4 +458,26 @@ else
 
         private static string CardCountText(int count, string label) => count == 1 ? $"1 {label}" : $"{count} {label}s";
     }
+
+    private sealed record DeckDetails(
+        int NewCardCount,
+        int LearningCardCount,
+        int ReviewCardCount,
+        int AttemptCount,
+        int CorrectCount,
+        int CurrentStreak,
+        string NextPracticeText,
+        IReadOnlyList<DeckDetailCard> Cards);
+
+    private sealed record DeckDetailCard(
+        string Prompt,
+        string Status,
+        int AttemptCount,
+        int CorrectCount,
+        DateTimeOffset? DueAt,
+        bool IsDue);
+
+    private sealed record DeckCardSeed(Guid Id, string Front, CardType CardType, int SortOrder);
+
+    private sealed record ProgressDetails(Guid CardId, DateTimeOffset DueAt, int ReviewCount, int LapseCount, string FsrsState);
 }
