@@ -965,6 +965,13 @@ label:not([class]) {
     font-size: 0.82rem;
 }
 
+.audio-settings-retry {
+    justify-self: start;
+    min-height: 2.35rem;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.85rem;
+}
+
 .audio-voice-select {
     min-height: 2.75rem;
     font-size: 0.95rem;

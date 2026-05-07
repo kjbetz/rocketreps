@@ -76,27 +76,27 @@ else if (assignment is not null)
                         {
                             <p class="status-danger">@audioPromptError</p>
                         }
-                        @if (isLoadingVoices)
-                        {
-                            <p class="status-muted">Loading voices...</p>
-                        }
-                        else if (speechVoices.Count > 0)
-                        {
-                            <div class="audio-settings">
-                                <button type="button"
-                                        class="audio-settings-toggle"
-                                        aria-controls="SpeechVoicePanel"
-                                        aria-expanded="@(isVoiceSettingsOpen ? "true" : "false")"
-                                        @onclick="ToggleVoiceSettings">
-                                    <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                                        <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Zm8.4-3.5c0-.5-.1-1-.2-1.5l2-1.5-2-3.4-2.4 1a8.4 8.4 0 0 0-2.5-1.5L15 2.5h-4l-.4 2.6c-.9.3-1.7.8-2.5 1.5l-2.4-1-2 3.4 2 1.5c-.1.5-.2 1-.2 1.5s.1 1 .2 1.5l-2 1.5 2 3.4 2.4-1c.8.7 1.6 1.2 2.5 1.5l.4 2.6h4l.4-2.6c.9-.3 1.7-.8 2.5-1.5l2.4 1 2-3.4-2-1.5c.1-.5.2-1 .2-1.5Z" />
-                                    </svg>
-                                    <span>Voice</span>
-                                    <small>@SelectedVoiceSummary</small>
-                                </button>
-                                @if (isVoiceSettingsOpen)
-                                {
-                                    <div id="SpeechVoicePanel" class="audio-settings-panel">
+                        <div class="audio-settings">
+                            <button type="button"
+                                    class="audio-settings-toggle"
+                                    aria-controls="SpeechVoicePanel"
+                                    aria-expanded="@(isVoiceSettingsOpen ? "true" : "false")"
+                                    @onclick="ToggleVoiceSettingsAsync">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                                    <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Zm8.4-3.5c0-.5-.1-1-.2-1.5l2-1.5-2-3.4-2.4 1a8.4 8.4 0 0 0-2.5-1.5L15 2.5h-4l-.4 2.6c-.9.3-1.7.8-2.5 1.5l-2.4-1-2 3.4 2 1.5c-.1.5-.2 1-.2 1.5s.1 1 .2 1.5l-2 1.5 2 3.4 2.4-1c.8.7 1.6 1.2 2.5 1.5l.4 2.6h4l.4-2.6c.9-.3 1.7-.8 2.5-1.5l2.4 1 2-3.4-2-1.5c.1-.5.2-1 .2-1.5Z" />
+                                </svg>
+                                <span>Voice</span>
+                                <small>@SelectedVoiceSummary</small>
+                            </button>
+                            @if (isVoiceSettingsOpen)
+                            {
+                                <div id="SpeechVoicePanel" class="audio-settings-panel">
+                                    @if (isLoadingVoices)
+                                    {
+                                        <p class="status-muted">Loading voices...</p>
+                                    }
+                                    else
+                                    {
                                         <label for="SpeechVoice">Spoken voice</label>
                                         <select id="SpeechVoice" class="field-input audio-voice-select" value="@selectedVoiceUri" @onchange="SelectVoiceAsync">
                                             <option value="">Browser default</option>
@@ -105,10 +105,17 @@ else if (assignment is not null)
                                                 <option value="@voice.VoiceUri">@VoiceLabel(voice)</option>
                                             }
                                         </select>
-                                    </div>
-                                }
-                            </div>
-                        }
+                                        @if (hasLoadedVoiceOptions && speechVoices.Count == 0)
+                                        {
+                                            <p class="status-muted">No extra voices are available yet. The browser default will still work.</p>
+                                        }
+                                        <button type="button" class="button-secondary audio-settings-retry" @onclick="RefreshVoiceOptionsAsync">
+                                            Reload voices
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
                     </div>
                 }
                 else
@@ -195,7 +202,9 @@ else if (assignment is not null)
 
     private string? AnswerPattern => AnswerInputMode == "numeric" ? "[0-9]*" : null;
 
-    private string SelectedVoiceSummary => string.IsNullOrWhiteSpace(selectedVoiceUri)
+    private string SelectedVoiceSummary => isLoadingVoices
+        ? "Loading..."
+        : string.IsNullOrWhiteSpace(selectedVoiceUri)
         ? "Browser default"
         : speechVoices.FirstOrDefault(voice => voice.VoiceUri == selectedVoiceUri)?.Name ?? "Browser default";
 
@@ -245,7 +254,7 @@ else if (assignment is not null)
             await answerElement.FocusAsync(preventScroll: true);
         }
 
-        if (currentCard?.CardType == CardType.AudioPrompt && !hasLoadedVoiceOptions)
+        if (currentCard?.CardType == CardType.AudioPrompt && !hasLoadedVoiceOptions && !isLoadingVoices)
         {
             await LoadSpeechVoicesAsync();
             StateHasChanged();
@@ -361,6 +370,10 @@ else if (assignment is not null)
             {
                 audioPromptError = "This browser cannot play the word aloud. Ask your teacher for help.";
             }
+            else if (speechVoices.Count == 0)
+            {
+                await LoadSpeechVoicesAsync(forceReload: true);
+            }
         }
         catch (JSException)
         {
@@ -372,15 +385,15 @@ else if (assignment is not null)
         }
     }
 
-    private async Task LoadSpeechVoicesAsync()
+    private async Task LoadSpeechVoicesAsync(bool forceReload = false)
     {
-        if (hasLoadedVoiceOptions || isLoadingVoices)
+        if ((!forceReload && hasLoadedVoiceOptions) || isLoadingVoices)
         {
             return;
         }
 
-        hasLoadedVoiceOptions = true;
         isLoadingVoices = true;
+        await InvokeAsync(StateHasChanged);
         try
         {
             speechModule ??= await JSRuntime.InvokeAsync<IJSObjectReference>("import", "/studentReviewSpeech.js");
@@ -395,6 +408,7 @@ else if (assignment is not null)
         }
         finally
         {
+            hasLoadedVoiceOptions = true;
             isLoadingVoices = false;
         }
     }
@@ -412,9 +426,18 @@ else if (assignment is not null)
         }
     }
 
-    private void ToggleVoiceSettings()
+    private async Task RefreshVoiceOptionsAsync()
+    {
+        await LoadSpeechVoicesAsync(forceReload: true);
+    }
+
+    private async Task ToggleVoiceSettingsAsync()
     {
         isVoiceSettingsOpen = !isVoiceSettingsOpen;
+        if (isVoiceSettingsOpen && (!hasLoadedVoiceOptions || speechVoices.Count == 0))
+        {
+            await LoadSpeechVoicesAsync(forceReload: hasLoadedVoiceOptions);
+        }
     }
 
     private async Task ContinueReviewAsync()

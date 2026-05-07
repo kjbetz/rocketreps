@@ -1,7 +1,30 @@
 const voiceStorageKey = "rocketreps-review-voice-uri";
+const voiceLoadTimeoutMs = 5000;
+const voicePollIntervalMs = 250;
 
 function supportsSpeechSynthesis() {
     return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+}
+
+function readVoices() {
+    return window.speechSynthesis.getVoices();
+}
+
+function addVoicesChangedListener(handler) {
+    if (typeof window.speechSynthesis.addEventListener === "function") {
+        window.speechSynthesis.addEventListener("voiceschanged", handler);
+        return () => window.speechSynthesis.removeEventListener("voiceschanged", handler);
+    }
+
+    const previousHandler = window.speechSynthesis.onvoiceschanged;
+    window.speechSynthesis.onvoiceschanged = (event) => {
+        previousHandler?.call(window.speechSynthesis, event);
+        handler(event);
+    };
+
+    return () => {
+        window.speechSynthesis.onvoiceschanged = previousHandler;
+    };
 }
 
 function loadVoices() {
@@ -9,17 +32,45 @@ function loadVoices() {
         return Promise.resolve([]);
     }
 
-    const voices = window.speechSynthesis.getVoices();
+    const voices = readVoices();
     if (voices.length > 0) {
         return Promise.resolve(voices);
     }
 
     return new Promise((resolve) => {
-        const timeoutId = window.setTimeout(() => resolve(window.speechSynthesis.getVoices()), 1000);
-        window.speechSynthesis.onvoiceschanged = () => {
+        let isSettled = false;
+        let removeVoicesChangedListener = () => { };
+        const settle = () => {
+            if (isSettled) {
+                return;
+            }
+
+            const loadedVoices = readVoices();
+            if (loadedVoices.length === 0) {
+                return;
+            }
+
+            isSettled = true;
+            window.clearInterval(pollId);
             window.clearTimeout(timeoutId);
-            resolve(window.speechSynthesis.getVoices());
+            removeVoicesChangedListener();
+            resolve(loadedVoices);
         };
+
+        const pollId = window.setInterval(settle, voicePollIntervalMs);
+        const timeoutId = window.setTimeout(() => {
+            if (isSettled) {
+                return;
+            }
+
+            isSettled = true;
+            window.clearInterval(pollId);
+            removeVoicesChangedListener();
+            resolve(readVoices());
+        }, voiceLoadTimeoutMs);
+
+        removeVoicesChangedListener = addVoicesChangedListener(settle);
+        window.setTimeout(settle, 0);
     });
 }
 

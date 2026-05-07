@@ -21,7 +21,7 @@ The app currently includes the foundation for the first vertical slice:
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
 - `/teacher` dashboard for classroom creation, student login generation, stock deck assignment, and active/inactive deck toggles.
 - `/student` dashboard that shows active classroom deck assignments.
-- `/student/review/{assignmentId}` flow that records right/wrong reviews, shows lifetime correct counts after correct answers, keeps the answer input focused between cards, uses mobile-friendly numeric input for math facts, schedules cards with FSRS.Core, and updates student card progress.
+- `/student/review/{assignmentId}` flow that records right/wrong reviews, shows lifetime correct counts after correct answers, keeps the answer input focused between cards, uses mobile-friendly numeric input for math facts, supports audio-prompt spelling cards with browser speech synthesis and a local voice picker, schedules cards with FSRS.Core, and updates student card progress.
 - Config-gated `/demo` launcher for open-house demos with seeded teacher, student, classroom, and deck assignment data.
 - Postmark-backed Identity emails for teacher account confirmation and password resets.
 - Plausible analytics rendered only in the Production environment.
@@ -49,7 +49,9 @@ For younger students, the first review model is binary: right or wrong. Internal
 
 This keeps the experience simple while FSRS.Core handles the scheduling behind the scenes. Rocket Reps uses classroom-focused FSRS defaults: `0.9` desired retention, `1m` and `10m` learning steps, a `5m` relearning step, and a `365` day maximum interval.
 
-Student review sessions select cards dynamically instead of walking the deck in sort order. Due cards appear first, oldest due first. If no cards are due, the app chooses a random new card. If there are no due or new cards, the student sees an all-done message. After every 20 reviewed cards, the app offers a break prompt when more work is available. Correct-answer feedback includes the student's lifetime correct count for that card as encouragement. The answer input is automatically focused when a card is ready, and math facts request a numeric keypad on mobile devices.
+Student review sessions select cards dynamically instead of walking the deck in sort order. Due cards appear first, oldest due first. If no cards are due, the app chooses a random new card. If there are no due or new cards, the student sees an all-done message. After every 20 reviewed cards, the app offers a break prompt when more work is available. Correct-answer feedback includes the student's lifetime correct count for that card as encouragement. The answer input is automatically focused when a card is ready, and math facts request a numeric keypad on mobile devices. Audio-prompt spelling cards hide the answer, ask the student to tap `Hear word`, and speak the target word through the browser's Web Speech API.
+
+The spelling voice picker is intentionally client-side. `RocketReps.Web/wwwroot/studentReviewSpeech.js` reads voices from `speechSynthesis.getVoices()`, waits for the asynchronous `voiceschanged` event, and saves the selected `voiceURI` in local storage. Voice availability and pronunciation quality depend on the student's browser, operating system, installed voices, and sometimes network availability for cloud voices.
 
 ## Project Structure
 
@@ -165,7 +167,7 @@ Startup seeding creates missing baseline data in every environment:
   - `Division Docking: 1s` through `Division Docking: 12s`
   - `Spelling Lift-Off`
 
-The stock math decks generate facts programmatically instead of storing hundreds of seed rows in migrations. Division-focused decks start at `1s` because division by zero is not valid. The spelling deck seeds audio-prompt cards for browser speech synthesis during student review.
+The stock math decks generate facts programmatically instead of storing hundreds of seed rows in migrations. Division-focused decks start at `1s` because division by zero is not valid. The spelling deck seeds `CardType.AudioPrompt` cards for browser speech synthesis during student review.
 
 When `Demo:Enabled` is true, startup also seeds `demo.teacher`, `demo.student01` through `demo.student30`, two demo classrooms, and active assignments for math and spelling decks. The `/demo` page signs users into those accounts without showing passwords.
 
