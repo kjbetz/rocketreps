@@ -20,7 +20,7 @@ The app currently includes the foundation for the first vertical slice:
 - Teacher-focused registration that assigns the `Teacher` role.
 - Role-aware post-login routing that sends teachers to `/teacher` and students to `/student` when no explicit return URL is present.
 - `/teacher` dashboard for classroom creation, student login generation, stock deck assignment, and active/inactive deck toggles.
-- `/student` dashboard that shows active classroom deck assignments.
+- `/student` dashboard that groups active classroom deck assignments into `Due Now`, `Ready For Launch`, and `All Caught Up` sections using due-card and new-card availability.
 - `/student/review/{assignmentId}` flow that records right/wrong reviews, shows lifetime correct counts after correct answers, keeps the answer input focused between cards, uses mobile-friendly numeric input for math facts, supports audio-prompt spelling cards with browser speech synthesis and a local voice picker, schedules cards with FSRS.Core, and updates student card progress.
 - Config-gated `/demo` launcher for open-house demos with seeded teacher, student, classroom, and deck assignment data.
 - Postmark-backed Identity emails for teacher account confirmation and password resets.

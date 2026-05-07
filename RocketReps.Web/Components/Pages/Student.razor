@@ -14,8 +14,8 @@
 
 <section class="page-hero compact">
     <p class="eyebrow">Student mission board</p>
-    <h1>Choose an active deck.</h1>
-    <p>These missions are turned on by your teacher. Pick one and launch a short practice round.</p>
+    <h1>Choose your next mission.</h1>
+    <p>These missions are turned on by your teacher. Start with decks that are due now, then launch something new.</p>
 </section>
 
 @if (isLoading)
@@ -31,29 +31,72 @@ else if (assignments.Count == 0)
 }
 else
 {
-    <section class="deck-grid" aria-label="Active student decks">
-        @foreach (var assignment in assignments)
+    <div class="student-mission-sections" aria-label="Active student decks">
+        @if (dueAssignments.Count > 0)
         {
-            <article class="deck-card">
-                <div class="deck-card-header">
-                    <span>@assignment.Subject</span>
-                    <strong>@assignment.CardCount cards</strong>
+            <section class="mission-section mission-section-primary" aria-labelledby="due-now-heading">
+                <div class="mission-section-header">
+                    <div>
+                        <p class="eyebrow">First stop</p>
+                        <h2 id="due-now-heading">Due Now</h2>
+                    </div>
+                    <p>Review these cards first to keep your memory rockets flying strong.</p>
                 </div>
-                <h2>@assignment.DeckTitle</h2>
-                <p>@assignment.Description</p>
-                <div class="deck-meta">
-                    <span>@assignment.ClassroomName</span>
-                    <span>@assignment.GradeBand</span>
+                <div class="deck-grid mission-deck-grid">
+                    @foreach (var assignment in dueAssignments)
+                    {
+                        @DeckCard(assignment)
+                    }
                 </div>
-                <a class="button-primary card-action" href="student/review/@assignment.AssignmentId">Start mission</a>
-            </article>
+            </section>
         }
-    </section>
+
+        @if (readyAssignments.Count > 0)
+        {
+            <section class="mission-section" aria-labelledby="ready-for-launch-heading">
+                <div class="mission-section-header">
+                    <div>
+                        <p class="eyebrow">Next mission</p>
+                        <h2 id="ready-for-launch-heading">Ready For Launch</h2>
+                    </div>
+                    <p>These decks have new cards ready whenever you want more practice.</p>
+                </div>
+                <div class="deck-grid mission-deck-grid">
+                    @foreach (var assignment in readyAssignments)
+                    {
+                        @DeckCard(assignment)
+                    }
+                </div>
+            </section>
+        }
+
+        @if (caughtUpAssignments.Count > 0)
+        {
+            <section class="mission-section mission-section-calm" aria-labelledby="all-caught-up-heading">
+                <div class="mission-section-header">
+                    <div>
+                        <p class="eyebrow">Nice work</p>
+                        <h2 id="all-caught-up-heading">All Caught Up</h2>
+                    </div>
+                    <p>No cards are ready in these decks right now. Check back later for the next launch window.</p>
+                </div>
+                <div class="deck-grid mission-deck-grid">
+                    @foreach (var assignment in caughtUpAssignments)
+                    {
+                        @DeckCard(assignment)
+                    }
+                </div>
+            </section>
+        }
+    </div>
 }
 
 @code {
     private bool isLoading = true;
     private List<StudentAssignment> assignments = [];
+    private List<StudentAssignment> dueAssignments = [];
+    private List<StudentAssignment> readyAssignments = [];
+    private List<StudentAssignment> caughtUpAssignments = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,6 +105,8 @@ else
 
         if (student is not null)
         {
+            var now = DateTimeOffset.UtcNow;
+
             assignments = await DbContext.DeckAssignments
                 .Where(assignment => assignment.IsActive &&
                     assignment.Classroom != null &&
@@ -77,12 +122,67 @@ else
                     assignment.Deck.Description,
                     assignment.Deck.Subject,
                     assignment.Deck.GradeBand,
-                    assignment.Deck.Cards.Count))
+                    assignment.Deck.Cards.Count,
+                    DbContext.StudentCardProgress.Count(progress => progress.UserId == student.Id &&
+                        progress.DueAt <= now &&
+                        progress.Card != null &&
+                        progress.Card.DeckId == assignment.DeckId),
+                    DbContext.Cards.Count(card => card.DeckId == assignment.DeckId &&
+                        !DbContext.StudentCardProgress.Any(progress => progress.UserId == student.Id && progress.CardId == card.Id)),
+                    DbContext.StudentCardProgress
+                        .Where(progress => progress.UserId == student.Id &&
+                            progress.DueAt <= now &&
+                            progress.Card != null &&
+                            progress.Card.DeckId == assignment.DeckId)
+                        .Min(progress => (DateTimeOffset?)progress.DueAt)))
                 .ToListAsync();
+
+            dueAssignments = assignments
+                .Where(assignment => assignment.DueCardCount > 0)
+                .OrderBy(assignment => assignment.OldestDueAt)
+                .ThenBy(assignment => assignment.ClassroomName)
+                .ThenBy(assignment => assignment.DeckTitle)
+                .ToList();
+
+            readyAssignments = assignments
+                .Where(assignment => assignment.DueCardCount == 0 && assignment.NewCardCount > 0)
+                .OrderBy(assignment => assignment.ClassroomName)
+                .ThenBy(assignment => assignment.DeckTitle)
+                .ToList();
+
+            caughtUpAssignments = assignments
+                .Where(assignment => assignment.DueCardCount == 0 && assignment.NewCardCount == 0)
+                .OrderBy(assignment => assignment.ClassroomName)
+                .ThenBy(assignment => assignment.DeckTitle)
+                .ToList();
         }
 
         isLoading = false;
     }
+
+    private RenderFragment DeckCard(StudentAssignment assignment) => @<article class="deck-card @assignment.CardStateClass">
+        <div class="deck-card-header">
+            <span>@assignment.Subject</span>
+            <strong>@assignment.StatusText</strong>
+        </div>
+        <h2>@assignment.DeckTitle</h2>
+        <p>@assignment.Description</p>
+        <div class="deck-meta">
+            <span>@assignment.ClassroomName</span>
+            <span>@assignment.GradeBand</span>
+            <span>@CardCountText(assignment.CardCount)</span>
+        </div>
+        @if (assignment.HasCardsToPractice)
+        {
+            <a class="button-primary card-action" href="student/review/@assignment.AssignmentId">@assignment.ActionText</a>
+        }
+        else
+        {
+            <span class="button-secondary card-action deck-card-idle" aria-label="No cards ready in @assignment.DeckTitle right now">Mission complete</span>
+        }
+    </article>;
+
+    private static string CardCountText(int cardCount) => cardCount == 1 ? "1 card" : $"{cardCount} cards";
 
     private sealed record StudentAssignment(
         Guid AssignmentId,
@@ -91,5 +191,27 @@ else
         string Description,
         string Subject,
         string GradeBand,
-        int CardCount);
+        int CardCount,
+        int DueCardCount,
+        int NewCardCount,
+        DateTimeOffset? OldestDueAt)
+    {
+        public bool HasCardsToPractice => DueCardCount > 0 || NewCardCount > 0;
+
+        public string ActionText => DueCardCount > 0 ? "Review now" : "Start mission";
+
+        public string CardStateClass => DueCardCount > 0
+            ? "deck-card-due"
+            : NewCardCount > 0
+                ? "deck-card-ready"
+                : "deck-card-caught-up";
+
+        public string StatusText => DueCardCount > 0
+            ? CardCountText(DueCardCount, "due card")
+            : NewCardCount > 0
+                ? CardCountText(NewCardCount, "new card")
+                : "Caught up";
+
+        private static string CardCountText(int count, string label) => count == 1 ? $"1 {label}" : $"{count} {label}s";
+    }
 }

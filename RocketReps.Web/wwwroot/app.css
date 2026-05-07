@@ -498,6 +498,79 @@ textarea {
     color: var(--accent-strong);
 }
 
+.student-mission-sections {
+    display: grid;
+    gap: 1.4rem;
+    padding-bottom: 4rem;
+}
+
+.mission-section {
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: calc(var(--radius) + 6px);
+    background: linear-gradient(160deg, var(--panel), var(--panel-muted));
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+}
+
+.mission-section-primary {
+    border-color: rgba(91, 95, 246, 0.38);
+}
+
+.mission-section-calm {
+    background: var(--panel);
+}
+
+.mission-section-header {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.mission-section-header h2 {
+    margin: 0.25rem 0 0;
+    color: var(--hero-text);
+    font-size: clamp(1.75rem, 4vw, 2.6rem);
+    letter-spacing: -0.06em;
+}
+
+.mission-section-header p:not(.eyebrow) {
+    max-width: 34rem;
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.mission-deck-grid {
+    padding-bottom: 0;
+}
+
+.deck-card-due::before {
+    background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
+}
+
+.deck-card-ready::before {
+    background: linear-gradient(90deg, var(--accent), var(--primary));
+}
+
+.deck-card-caught-up::before {
+    background: var(--line);
+}
+
+.deck-card-caught-up {
+    box-shadow: none;
+}
+
+.deck-card-idle {
+    cursor: default;
+}
+
+.deck-card-idle:hover {
+    transform: none;
+}
+
 .demo-login-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1137,6 +1210,14 @@ label:not([class]) {
 
     .mission-stat-grid {
         grid-template-columns: 1fr;
+    }
+
+    .mission-section-header {
+        display: block;
+    }
+
+    .mission-section-header p:not(.eyebrow) {
+        margin-top: 0.65rem;
     }
 }
 
