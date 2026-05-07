@@ -15,6 +15,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject FsrsReviewScheduler ReviewScheduler
 @inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 @implements IAsyncDisposable
 
 <PageTitle>Review Mission</PageTitle>
@@ -60,8 +61,13 @@ else if (assignment is not null)
     else
     {
         <section class="review-shell">
-            <div class="review-progress">
-                Reviewed @completedCount this session · @(currentCard.IsDue ? "Review card" : "New card")
+            <div class="review-session-bar">
+                <div class="review-progress">
+                    Reviewed @completedCount this session · @(currentCard.IsDue ? "Review card" : "New card")
+                </div>
+                <button type="button" class="button-secondary review-end-button" disabled="@isSubmitting" @onclick="ShowEndSessionConfirmation">
+                    End session
+                </button>
             </div>
             <article class="review-card">
                 @if (currentCard.CardType == CardType.AudioPrompt)
@@ -166,6 +172,21 @@ else if (assignment is not null)
                 }
             </article>
         </section>
+
+        @if (isConfirmingEndSession)
+        {
+            <div class="session-confirm-backdrop">
+                <section class="session-confirm" role="dialog" aria-modal="true" aria-labelledby="EndSessionTitle">
+                    <p class="eyebrow">Ready to stop?</p>
+                    <h2 id="EndSessionTitle">End this review session?</h2>
+                    <p class="status-muted">Your finished cards are saved. This card will wait for next time if you have not checked it yet.</p>
+                    <div class="session-confirm-actions">
+                        <button type="button" class="button-primary" @onclick="CancelEndSession">Keep practicing</button>
+                        <button type="button" class="button-secondary" @onclick="EndSession">End session</button>
+                    </div>
+                </section>
+            </div>
+        }
     }
 }
 
@@ -186,6 +207,7 @@ else if (assignment is not null)
     private bool isLoadingVoices;
     private bool hasLoadedVoiceOptions;
     private bool isVoiceSettingsOpen;
+    private bool isConfirmingEndSession;
     private bool showBreakPrompt;
     private bool shouldFocusAnswer;
     private string? loadError;
@@ -325,6 +347,25 @@ else if (assignment is not null)
         {
             isSubmitting = false;
         }
+    }
+
+    private void ShowEndSessionConfirmation()
+    {
+        if (!isSubmitting)
+        {
+            isConfirmingEndSession = true;
+        }
+    }
+
+    private void CancelEndSession()
+    {
+        isConfirmingEndSession = false;
+        shouldFocusAnswer = currentCard is not null && feedback is null;
+    }
+
+    private void EndSession()
+    {
+        Navigation.NavigateTo("student");
     }
 
     private async Task MoveNextAsync()
